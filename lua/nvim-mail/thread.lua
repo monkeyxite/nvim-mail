@@ -48,7 +48,7 @@ function M.show(bufnr)
   end
 
   -- Open terminal buffer running nm-html-extract (renders ANSI natively)
-  vim.cmd('vnew')
+  vim.cmd('below new')
   vim.fn.termopen(M.build_cmd(msgid), {
     on_exit = function()
       vim.bo.modifiable = false
