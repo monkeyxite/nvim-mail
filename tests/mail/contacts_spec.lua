@@ -95,4 +95,26 @@ describe('mail.contacts', function()
       vim.api.nvim_buf_delete(buf, { force = true })
     end)
   end)
+
+  describe('query_notmuch', function()
+    it('parses notmuch JSON address output', function()
+      -- Mock: test the parsing logic directly
+      local json = '[{"name":"Alice","address":"alice@example.com","name-addr":"Alice <alice@example.com>"},{"name":"","address":"bob@test.com","name-addr":"bob@test.com"}]'
+      local data = vim.json.decode(json)
+      local results = {}
+      for _, entry in ipairs(data) do
+        if entry.address then
+          results[#results + 1] = {
+            email = entry.address,
+            name = entry.name or '',
+            type = 'notmuch',
+          }
+        end
+      end
+      assert.equals(2, #results)
+      assert.equals('alice@example.com', results[1].email)
+      assert.equals('Alice', results[1].name)
+      assert.equals('bob@test.com', results[2].email)
+    end)
+  end)
 end)

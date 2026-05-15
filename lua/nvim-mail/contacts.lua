@@ -21,6 +21,8 @@ M.config = {
   args = { 'email', '-p', '--remove-first-line' },
   -- From: → account mapping
   from_map = {},  -- e.g. { ['ericsson'] = 'work', ['gmail'] = 'personal' }
+  -- notmuch address search (searches all indexed mail)
+  notmuch = true,
 }
 
 --- Check if a line is an address header (To/Cc/Bcc)
@@ -72,6 +74,28 @@ function M.detect_account()
   return nil
 end
 
+--- Query notmuch for addresses matching a string
+---@param query string
+---@return {email: string, name: string, type?: string}[]
+function M.query_notmuch(query)
+  if query == '' then return {} end
+  local output = vim.fn.system({ 'notmuch', 'address', '--format=json', '--deduplicate=address', 'from:' .. query .. '* OR to:' .. query .. '*' })
+  if vim.v.shell_error ~= 0 then return {} end
+  local ok, data = pcall(vim.json.decode, output)
+  if not ok or not data then return {} end
+  local results = {}
+  for _, entry in ipairs(data) do
+    if entry.address then
+      results[#results + 1] = {
+        email = entry.address,
+        name = entry.name or '',
+        type = 'notmuch',
+      }
+    end
+  end
+  return results
+end
+
 --- Query khard for contacts matching a string
 ---@param query string
 ---@return {email: string, name: string, type?: string}[]
@@ -89,6 +113,19 @@ function M.query(query)
   for _, line in ipairs(vim.split(output, '\n')) do
     local item = M.parse_khard_line(line)
     if item then results[#results + 1] = item end
+  end
+  -- Merge notmuch results
+  if M.config.notmuch then
+    local nm_results = M.query_notmuch(query)
+    -- Deduplicate by email
+    local seen = {}
+    for _, r in ipairs(results) do seen[r.email] = true end
+    for _, r in ipairs(nm_results) do
+      if not seen[r.email] then
+        results[#results + 1] = r
+        seen[r.email] = true
+      end
+    end
   end
   return results
 end
