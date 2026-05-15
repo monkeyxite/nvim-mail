@@ -90,17 +90,17 @@ local function search(opts)
           local file_path = vim.fn.system({ 'notmuch', 'search', '--output=files', '--limit=1', 'id:' .. msgid }):gsub('%s+$', '')
           local my_from = ''
           local contacts = require('nvim-mail.contacts')
-          for pattern, acct in pairs(contacts.config.from_map or {}) do
-            if file_path:find(pattern) then
-              -- Find matching address from init config
-              local init = require('nvim-mail')
-              for _, addr in ipairs(init.config.from_list or {}) do
-                if addr:lower():find(pattern) then
-                  my_from = addr
-                  break
-                end
-              end
+          for _, acct_cfg in pairs(contacts.config.accounts or {}) do
+            if acct_cfg.notmuch_path and file_path:find(acct_cfg.notmuch_path, 1, true) then
+              my_from = acct_cfg.from or ''
               break
+            end
+          end
+          -- Fallback: try from_list
+          if my_from == '' then
+            local init = require('nvim-mail')
+            if init.config.from_list and #init.config.from_list > 0 then
+              my_from = init.config.from_list[1]
             end
           end
           -- Build reply draft
