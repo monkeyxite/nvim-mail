@@ -12,21 +12,21 @@ M.config = {
   -- Snippet definitions per context
   snippets = {
     work = {
-      { trigger = 'ty', body = 'Thanks for the update.' },
-      { trigger = 'pfa', body = 'Please find attached.' },
-      { trigger = 'br', body = 'Best regards,\n${1:John}' },
-      { trigger = 'fyi', body = 'FYI — ${1:context}.' },
-      { trigger = 'ack', body = 'Acknowledged, will follow up by ${1:date}.' },
+      { trigger = 'mty', body = 'Thanks for the update.' },
+      { trigger = 'mpfa', body = 'Please find attached.' },
+      { trigger = 'mbr', body = 'Best regards,\n${1:John}' },
+      { trigger = 'mfyi', body = 'FYI — ${1:context}.' },
+      { trigger = 'mack', body = 'Acknowledged, will follow up by ${1:date}.' },
     },
     personal = {
-      { trigger = 'ty', body = 'Thanks!' },
-      { trigger = 'ch', body = 'Cheers,\n${1:John}' },
-      { trigger = 'lmk', body = 'Let me know what you think.' },
+      { trigger = 'mty', body = 'Thanks!' },
+      { trigger = 'mch', body = 'Cheers,\n${1:John}' },
+      { trigger = 'mlmk', body = 'Let me know what you think.' },
     },
     general = {
-      { trigger = 'ty', body = 'Thank you.' },
-      { trigger = 'br', body = 'Best regards,\n${1:John}' },
-      { trigger = 'sig', body = 'Best,\n${1:John}' },
+      { trigger = 'mty', body = 'Thank you.' },
+      { trigger = 'mbr', body = 'Best regards,\n${1:John}' },
+      { trigger = 'msig', body = 'Best,\n${1:John}' },
     },
   },
 }
@@ -95,7 +95,7 @@ function M.load_for_buffer(lines)
     end
   end
 
-  ls.add_snippets('mail', ls_snips, { key = 'nvim-mail-' .. ctx })
+  ls.add_snippets('mail', ls_snips, { key = 'nvim-mail-' .. ctx, priority = 2000 })
 end
 
 return M
