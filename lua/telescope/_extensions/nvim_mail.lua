@@ -37,12 +37,14 @@ local function search(opts)
         }
       end,
     }),
-    previewer = previewers.new_termopen_previewer({
-      get_command = function(entry)
-        if not entry or not entry.thread then return { 'echo', 'No thread' } end
-        return { 'sh', '-c',
-          'msgid=$(' .. get_msgid_cmd(entry.thread) .. ') && nm-html-extract "$msgid"'
-        }
+    previewer = previewers.new_buffer_previewer({
+      title = 'Mail Preview',
+      define_preview = function(self, entry)
+        if not entry or not entry.thread then return end
+        local cmd = 'msgid=$(' .. get_msgid_cmd(entry.thread) .. ') && nm-html-extract "$msgid" | sed "s/\x1b\[[0-9;]*m//g"'
+        local output = vim.fn.system({ 'sh', '-c', cmd })
+        vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, vim.split(output, '\n'))
+        vim.bo[self.state.bufnr].filetype = 'mail'
       end,
     }),
     sorter = require('telescope.sorters').empty(),
