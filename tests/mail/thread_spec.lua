@@ -43,6 +43,7 @@ describe('mail.thread', function()
       assert.is_truthy(cmd:find('notmuch', 1, true))
       assert.is_truthy(cmd:find('test-id@example.com', 1, true))
       assert.is_truthy(cmd:find('muttlook', 1, true))
+      assert.is_truthy(cmd:find('mktemp', 1, true))
     end)
 
     it('builds plain fallback command', function()

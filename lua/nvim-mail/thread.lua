@@ -26,7 +26,11 @@ end
 ---@param msgid string
 ---@return string
 function M.build_cmd(msgid)
-  return string.format('notmuch show --format=raw id:%s | muttlook --action tui /dev/stdin', msgid)
+  -- Write raw message to tmp, then render with muttlook
+  return string.format(
+    'tmp=$(mktemp) && notmuch show --format=raw id:%s > "$tmp" && muttlook --action tui "$tmp"; rm -f "$tmp"',
+    msgid
+  )
 end
 
 --- Build fallback command (plain text, no muttlook)
