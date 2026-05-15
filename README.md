@@ -185,7 +185,7 @@ require('telescope').load_extension('nvim_mail')
 
 Or bind it:
 ```lua
-vim.keymap.set('n', '<leader>fm', require('telescope').extensions.nvim_mail.search, { desc = 'Search mail' })
+vim.keymap.set('n', '<leader>sm', require('telescope').extensions.nvim_mail.search, { desc = 'Search mail' })
 ```
 
 Features:
