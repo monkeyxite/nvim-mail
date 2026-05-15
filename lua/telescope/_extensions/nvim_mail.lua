@@ -86,9 +86,27 @@ local function search(opts)
             subject = hdrs.Subject or ''
             msg_id = hdrs['Message-ID'] or msgid
           end
+          -- Determine From: based on which account received the message
+          local file_path = vim.fn.system({ 'notmuch', 'search', '--output=files', '--limit=1', 'id:' .. msgid }):gsub('%s+$', '')
+          local my_from = ''
+          local contacts = require('nvim-mail.contacts')
+          for pattern, acct in pairs(contacts.config.from_map or {}) do
+            if file_path:find(pattern) then
+              -- Find matching address from init config
+              local init = require('nvim-mail')
+              for _, addr in ipairs(init.config.from_list or {}) do
+                if addr:lower():find(pattern) then
+                  my_from = addr
+                  break
+                end
+              end
+              break
+            end
+          end
           -- Build reply draft
           local reply_subject = subject:match('^Re:') and subject or ('Re: ' .. subject)
           local lines = {
+            'From: ' .. my_from,
             'To: ' .. from,
             'Subject: ' .. reply_subject,
             'In-Reply-To: ' .. msg_id,
@@ -101,7 +119,7 @@ local function search(opts)
           vim.cmd('enew')
           vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
           vim.bo.filetype = 'mail'
-          vim.api.nvim_win_set_cursor(0, { 5, 0 })
+          vim.api.nvim_win_set_cursor(0, { 6, 0 })
           vim.cmd('startinsert')
         end
       end)
