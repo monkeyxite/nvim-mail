@@ -54,8 +54,10 @@ graph LR
 
 | Tool | Used by | Required |
 |------|---------|----------|
-| [muttlook](https://github.com/monkeyxite/muttlook) | Thread context, Preview | Yes |
+| [muttlook](https://github.com/monkeyxite/muttlook) | Thread context, Preview, Telescope view | Yes |
 | [notmuch](https://notmuchmail.org) | Thread context, Contacts, Telescope | Yes |
+| [nm-livesearch](https://github.com/dagle/nm-livesearch) | Telescope async search | Yes (for telescope) |
+| [nm-html-extract](link) | Telescope preview, Thread context | Yes |
 | [khard](https://github.com/lucc/khard) | Contact completion | Yes |
 | [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) | Mail search | Optional |
 | [blink.cmp](https://github.com/Saghen/blink.cmp) | Completion framework | Optional |
@@ -173,26 +175,36 @@ sources = {
 
 ## 🔭 Telescope
 
-Fuzzy search your maildir via notmuch (account-scoped):
+Fuzzy search your maildir via `nm-livesearch` (same engine as `nms`):
 
 ```lua
--- Load the extension
 require('telescope').load_extension('nvim_mail')
+```
 
--- Search mail
+```vim
 :Telescope nvim_mail search
 ```
 
 Or bind it:
 ```lua
-vim.keymap.set('n', '<leader>sm', require('telescope').extensions.nvim_mail.search, { desc = 'Search mail' })
+vim.keymap.set('n', '<leader>sm', require('telescope').extensions.nvim_mail.search, { desc = '[S]earch [M]ail' })
 ```
 
+### Picker keymaps
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Open thread in neomutt |
+| `Ctrl+o` | View in browser (muttlook) |
+| `Ctrl+r` | Reply via muttlook |
+| `Ctrl+t` | GTD tag (archive/action/waiting/defer/done) |
+| `Ctrl+y` | Copy message-id to clipboard |
+
 Features:
-- Live notmuch query as you type
-- Account-scoped (uses `notmuch_path` from contacts config)
-- Preview shows full message text
-- Enter opens thread in neomutt
+- Live results as you type (nm-livesearch async streaming)
+- Account-scoped via `notmuch_path` config
+- Preview: styled ANSI via `nm-html-extract` (same as nms)
+- GTD tagging without leaving the picker
 
 ## 🧪 Tests
 
