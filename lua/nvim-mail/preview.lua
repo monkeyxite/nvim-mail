@@ -34,18 +34,29 @@ end
 function M.show(bufnr)
   bufnr = bufnr or 0
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local text = table.concat(lines, '\n')
+
+  -- muttlook --action draft expects BODY only (not headers)
+  -- Extract body including muttlook markers
+  local body_lines = {}
+  local in_body = false
+  for _, l in ipairs(lines) do
+    if not in_body then
+      if l == '' then in_body = true end
+    else
+      body_lines[#body_lines + 1] = l
+    end
+  end
+  local body = table.concat(body_lines, '\n')
 
   -- Use muttlook --action draft (handles markers, thread history, template)
-  local output = vim.fn.system('muttlook --action draft', text)
+  local output = vim.fn.system('muttlook --action draft', body)
   if vim.v.shell_error == 0 then
     local html = vim.fn.expand('~/.cache/muttlook/mimelook.html')
     vim.fn.system({ 'open', html })
   else
     -- Fallback to plain pandoc
-    local body = M.extract_body(lines)
-    local body_text = table.concat(body, '\n')
-    local html = vim.fn.system(M.build_cmd(), body_text)
+    local clean_body = table.concat(M.extract_body(lines), '\n')
+    local html = vim.fn.system(M.build_cmd(), clean_body)
     if vim.v.shell_error ~= 0 then
       vim.notify('Preview failed: ' .. html, vim.log.levels.ERROR)
       return
