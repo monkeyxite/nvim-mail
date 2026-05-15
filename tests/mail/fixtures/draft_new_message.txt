@@ -1,0 +1,8 @@
+From: John Doe <john@example.com>
+To: someone@example.com
+Subject: New topic
+
+Hello, this is a new message.
+
+Best,
+John

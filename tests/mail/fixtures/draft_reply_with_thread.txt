@@ -1,0 +1,11 @@
+From: John Doe <john@example.com>
+To: someone@example.com
+Subject: Re: Project update
+In-Reply-To: <thread-msg-123@example.com>
+
+Thanks for the update, looks good.
+
+Best,
+John
+
+[//]: # (muttlook-reply-to:<thread-msg-123@example.com>)

@@ -1,0 +1,8 @@
+From: John Doe <john@personal.com>
+To: friend@gmail.com
+Subject: Weekend plans
+
+Hey! Are we still on for Saturday?
+
+Cheers,
+John

@@ -1,0 +1,8 @@
+From: John Doe <john@example.com>
+To: alice@work.com
+Cc: bob@work.com
+Subject: Re: Sprint planning
+
+Sounds good, let's do it.
+
+John
