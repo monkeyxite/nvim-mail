@@ -74,12 +74,19 @@ function M.detect_account()
   return nil
 end
 
---- Query notmuch for addresses matching a string
+--- Query notmuch for addresses matching a string (scoped by account)
 ---@param query string
 ---@return {email: string, name: string, type?: string}[]
 function M.query_notmuch(query)
   if query == '' then return {} end
-  local output = vim.fn.system({ 'notmuch', 'address', '--format=json', '--deduplicate=address', 'from:' .. query .. '* OR to:' .. query .. '*' })
+  -- Scope by account path if available
+  local acct = M.detect_account()
+  local path_filter = ''
+  if acct and M.config.accounts[acct] and M.config.accounts[acct].notmuch_path then
+    path_filter = ' AND path:' .. M.config.accounts[acct].notmuch_path .. '/**'
+  end
+  local nm_query = '(from:' .. query .. '* OR to:' .. query .. '*)' .. path_filter
+  local output = vim.fn.system({ 'notmuch', 'address', '--format=json', '--deduplicate=address', nm_query })
   if vim.v.shell_error ~= 0 then return {} end
   local ok, data = pcall(vim.json.decode, output)
   if not ok or not data then return {} end
