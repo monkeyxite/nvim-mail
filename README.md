@@ -3,7 +3,7 @@
 <img src="res/banner.svg" width="400">
 
 [![Tests](https://github.com/monkeyxite/nvim-mail/actions/workflows/test.yml/badge.svg)](https://github.com/monkeyxite/nvim-mail/actions)
-![Tests](https://img.shields.io/badge/tests-55%20passing-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-56%20passing-brightgreen?style=flat-square)
 [![Neovim](https://img.shields.io/badge/requires-neovim%200.10%2B-57A143?style=flat-square&logo=neovim&logoColor=white)](https://neovim.io)
 [![Lua](https://img.shields.io/badge/Lua-5.1%2B-2C2D72?style=flat-square&logo=lua&logoColor=white)](https://www.lua.org)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
@@ -70,18 +70,30 @@ graph LR
 ```lua
 {
   'monkeyxite/nvim-mail',
-  ft = 'mail',
   opts = {
     from_list = {
       'John Doe <john@work.com>',
       'John Doe <john@gmail.com>',
     },
     spell_langs = { 'en', 'sv' },
+    send_accounts = {
+      ['work'] = '-e "source ~/.config/mutt/accounts/work.muttrc"',
+      ['gmail'] = '-e "source ~/.config/mutt/accounts/personal.muttrc"',
+    },
     contacts = {
       from_map = { ['work%.com'] = 'work', ['gmail%.com'] = 'personal' },
+      notmuch = true,
       accounts = {
-        work = { cmd = 'khard', args = { 'email', '-p', '--remove-first-line', '-A', 'work' } },
-        personal = { cmd = 'khard', args = { 'email', '-p', '--remove-first-line', '-A', 'personal' } },
+        work = {
+          cmd = 'khard', args = { 'email', '-p', '--remove-first-line', '-A', 'work' },
+          notmuch_path = 'work',
+          from = 'John Doe <john@work.com>',
+        },
+        personal = {
+          cmd = 'khard', args = { 'email', '-p', '--remove-first-line', '-A', 'personal' },
+          notmuch_path = 'personal@gmail.com',
+          from = 'John Doe <john@gmail.com>',
+        },
       },
     },
   },
@@ -110,10 +122,14 @@ All under configurable prefix (default `,m`):
 | `,mk` | Kill quoted sig |
 | `,ml` | Cycle spell lang |
 
-### Compose enhancements
+### Compose & Send
 
 | Key | Action |
 |-----|--------|
+| `,mm` | Send mail (account detection + muttlook + neomutt) |
+| `,mq` | Quote selection (normal + visual) |
+| `,mi` | Paste image from clipboard (CID path) |
+| `,ma` | Sync contacts (khard) |
 | `,mT` | Thread context (terminal split) |
 | `,mp` | Preview as HTML (muttlook) |
 
@@ -121,9 +137,11 @@ All under configurable prefix (default `,m`):
 
 | Trigger | Action |
 |---------|--------|
-| `:w` | Attachment mention warning |
-| Buffer open | Muttlook marker extmarks |
-| `To:/Cc:/Bcc:` | Contact completion (blink-cmp) |
+| `:w` | Warns if "attach" mentioned but no attachment marker |
+| Buffer open | Muttlook markers shown as virtual text |
+| Buffer open | Treesitter markdown, spell, luasnip |
+| `To:/Cc:/Bcc:` | Contact completion (blink-cmp: khard + notmuch) |
+| `.eml` / `/tmp/neomutt-*` | Auto-detected as `mail` filetype |
 
 ## 🎯 Snippets
 
