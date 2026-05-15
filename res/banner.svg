@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1b26"/>
+      <stop offset="100%" style="stop-color:#24283b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7aa2f7"/>
+      <stop offset="100%" style="stop-color:#bb9af7"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="120" rx="12" fill="url(#bg)"/>
+  <rect x="1" y="1" width="398" height="118" rx="11" fill="none" stroke="url(#accent)" stroke-width="1.5" opacity="0.4"/>
+  <!-- Mail icon -->
+  <g transform="translate(30, 35)">
+    <rect x="0" y="8" width="44" height="32" rx="4" fill="none" stroke="#7aa2f7" stroke-width="2.5"/>
+    <polyline points="0,10 22,28 44,10" fill="none" stroke="#7aa2f7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Sparkle -->
+    <circle cx="40" cy="6" r="3" fill="#bb9af7" opacity="0.8"/>
+    <circle cx="46" cy="12" r="1.5" fill="#7dcfff" opacity="0.6"/>
+  </g>
+  <!-- Text -->
+  <text x="90" y="55" font-family="JetBrains Mono, monospace" font-size="28" font-weight="bold" fill="#c0caf5">nvim-mail</text>
+  <text x="90" y="80" font-family="JetBrains Mono, monospace" font-size="12" fill="#565f89">compose enhancements for neomutt</text>
+  <!-- Tech badges -->
+  <g transform="translate(90, 90)">
+    <rect x="0" y="0" width="45" height="16" rx="3" fill="#7aa2f7" opacity="0.2"/>
+    <text x="22.5" y="11.5" font-family="monospace" font-size="9" fill="#7aa2f7" text-anchor="middle">lua</text>
+    <rect x="52" y="0" width="62" height="16" rx="3" fill="#9ece6a" opacity="0.2"/>
+    <text x="83" y="11.5" font-family="monospace" font-size="9" fill="#9ece6a" text-anchor="middle">notmuch</text>
+    <rect x="121" y="0" width="62" height="16" rx="3" fill="#bb9af7" opacity="0.2"/>
+    <text x="152" y="11.5" font-family="monospace" font-size="9" fill="#bb9af7" text-anchor="middle">muttlook</text>
+    <rect x="190" y="0" width="55" height="16" rx="3" fill="#e0af68" opacity="0.2"/>
+    <text x="217.5" y="11.5" font-family="monospace" font-size="9" fill="#e0af68" text-anchor="middle">neomutt</text>
+  </g>
+</svg>

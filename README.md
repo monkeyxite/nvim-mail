@@ -1,20 +1,19 @@
 <div align="center">
 
-```
-                 ╭─────────────────────────────╮
-                 │   ✉️  nvim-mail              │
-                 │                             │
-                 │   ⚡ Neovim mail compose    │
-                 │      enhancements           │
-                 │                             │
-                 │   neomutt · notmuch · lua   │
-                 ╰─────────────────────────────╯
-```
+<img src="res/banner.svg" width="400">
 
 [![Tests](https://github.com/monkeyxite/nvim-mail/actions/workflows/test.yml/badge.svg)](https://github.com/monkeyxite/nvim-mail/actions)
-[![Neovim](https://img.shields.io/badge/Neovim-0.10%2B-57A143?logo=neovim&logoColor=white)](https://neovim.io)
-[![Lua](https://img.shields.io/badge/Lua-5.1%2B-2C2D72?logo=lua&logoColor=white)](https://www.lua.org)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Neovim](https://img.shields.io/badge/requires-neovim%200.10%2B-57A143?style=flat-square&logo=neovim&logoColor=white)](https://neovim.io)
+[![Lua](https://img.shields.io/badge/Lua-5.1%2B-2C2D72?style=flat-square&logo=lua&logoColor=white)](https://www.lua.org)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+
+[Features](#-features)
+•
+[Install](#-install)
+•
+[Keymaps](#%EF%B8%8F-keymaps)
+•
+[Config](#%EF%B8%8F-configuration)
 
 </div>
 
@@ -56,8 +55,9 @@ graph LR
 | Tool | Used by | Required |
 |------|---------|----------|
 | [muttlook](https://github.com/monkeyxite/muttlook) | Thread context, Preview | Yes |
-| [notmuch](https://notmuchmail.org) | Thread context | Yes |
+| [notmuch](https://notmuchmail.org) | Thread context, Contacts, Telescope | Yes |
 | [khard](https://github.com/lucc/khard) | Contact completion | Yes |
+| [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) | Mail search | Optional |
 | [blink.cmp](https://github.com/Saghen/blink.cmp) | Completion framework | Optional |
 | [luasnip](https://github.com/L3MON4D3/LuaSnip) | Snippet expansion | Optional |
 
@@ -170,6 +170,29 @@ sources = {
   },
 }
 ```
+
+## 🔭 Telescope
+
+Fuzzy search your maildir via notmuch (account-scoped):
+
+```lua
+-- Load the extension
+require('telescope').load_extension('nvim_mail')
+
+-- Search mail
+:Telescope nvim_mail search
+```
+
+Or bind it:
+```lua
+vim.keymap.set('n', '<leader>fm', require('telescope').extensions.nvim_mail.search, { desc = 'Search mail' })
+```
+
+Features:
+- Live notmuch query as you type
+- Account-scoped (uses `notmuch_path` from contacts config)
+- Preview shows full message text
+- Enter opens thread in neomutt
 
 ## 🧪 Tests
 
