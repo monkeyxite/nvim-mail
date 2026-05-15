@@ -196,9 +196,12 @@ vim.keymap.set('n', '<leader>sm', require('telescope').extensions.nvim_mail.sear
 |-----|--------|
 | `Enter` | Open thread in neomutt |
 | `Ctrl+o` | View in browser (muttlook) |
-| `Ctrl+r` | Reply via muttlook |
+| `Ctrl+r` | Reply via muttlook → neomutt → nvr |
 | `Ctrl+t` | GTD tag (archive/action/waiting/defer/done) |
 | `Ctrl+y` | Copy message-id to clipboard |
+| `Ctrl+l` | Full styled preview in split (ANSI colors) |
+| `Ctrl+n/p` | Next/previous item |
+| `Ctrl+d/u` | Scroll preview down/up |
 
 Features:
 - Live results as you type (nm-livesearch async streaming)
