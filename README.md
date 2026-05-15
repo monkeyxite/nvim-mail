@@ -196,7 +196,7 @@ vim.keymap.set('n', '<leader>sm', require('telescope').extensions.nvim_mail.sear
 |-----|--------|
 | `Enter` | Open thread in neomutt |
 | `Ctrl+o` | View in browser (muttlook) |
-| `Ctrl+r` | Reply via muttlook → neomutt → nvr |
+| `Ctrl+r` | Reply — opens draft in nvim buffer (use `,m` to send) |
 | `Ctrl+t` | GTD tag (archive/action/waiting/defer/done) |
 | `Ctrl+y` | Copy message-id to clipboard |
 | `Ctrl+l` | Full styled preview in split (ANSI colors) |
