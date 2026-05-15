@@ -70,14 +70,39 @@ local function search(opts)
         end
       end)
 
-      -- Ctrl+r: reply — muttlook draft → neomutt → nvr
+      -- Ctrl+r: reply — open draft directly in nvim buffer
       map({ 'i', 'n' }, '<C-r>', function()
         actions.close(prompt_bufnr)
         local entry = action_state.get_selected_entry()
         if entry and entry.thread then
-          vim.fn.system('sh -c \'msgid=$(' .. get_msgid_cmd(entry.thread) .. ') && notmuch show --format=raw "id:$msgid" | muttlook --action draft\'')
-          local draft = vim.fn.expand('~/.cache/muttlook/mimelook.html')
-          vim.cmd('terminal neomutt -H ' .. vim.fn.shellescape(draft))
+          -- Get message headers for reply
+          local msgid = vim.fn.system('sh -c \'' .. get_msgid_cmd(entry.thread) .. '\''):gsub('%s+$', '')
+          local headers_json = vim.fn.system({ 'notmuch', 'show', '--format=json', '--body=false', 'id:' .. msgid })
+          local ok, data = pcall(vim.json.decode, headers_json)
+          local from, subject, msg_id = '', '', msgid
+          if ok and data and data[1] and data[1][1] and data[1][1][1] then
+            local hdrs = data[1][1][1].headers or {}
+            from = hdrs.From or ''
+            subject = hdrs.Subject or ''
+            msg_id = hdrs['Message-ID'] or msgid
+          end
+          -- Build reply draft
+          local reply_subject = subject:match('^Re:') and subject or ('Re: ' .. subject)
+          local lines = {
+            'To: ' .. from,
+            'Subject: ' .. reply_subject,
+            'In-Reply-To: ' .. msg_id,
+            '',
+            '',
+            '',
+            '[//]: # (muttlook-reply-to:' .. msg_id .. ')',
+          }
+          -- Open in new buffer
+          vim.cmd('enew')
+          vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+          vim.bo.filetype = 'mail'
+          vim.api.nvim_win_set_cursor(0, { 5, 0 })
+          vim.cmd('startinsert')
         end
       end)
 
