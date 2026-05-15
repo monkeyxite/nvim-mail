@@ -35,8 +35,12 @@ function M.show(bufnr)
   bufnr = bufnr or 0
 
   -- Save the file first
-  vim.cmd('write')
   local file = vim.fn.expand('%')
+  if file == '' then
+    file = vim.fn.tempname() .. '.eml'
+    vim.api.nvim_buf_set_name(bufnr, file)
+  end
+  vim.cmd('write')
 
   -- Write original.msg from draft headers so muttlook can find the replied-to message
   -- (muttlook falls back to original.msg when no marker is present)
