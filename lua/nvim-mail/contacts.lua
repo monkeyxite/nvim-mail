@@ -5,8 +5,22 @@
 local M = {}
 
 M.config = {
+  -- Per-account contact sources
+  accounts = {
+    work = {
+      cmd = 'khard',
+      args = { 'email', '-p', '--remove-first-line', '-A', 'work' },
+    },
+    personal = {
+      cmd = 'khard',
+      args = { 'email', '-p', '--remove-first-line', '-A', 'personal' },
+    },
+  },
+  -- Fallback (no account match)
   cmd = 'khard',
   args = { 'email', '-p', '--remove-first-line' },
+  -- From: → account mapping
+  from_map = {},  -- e.g. { ['ericsson'] = 'work', ['gmail'] = 'personal' }
 }
 
 --- Check if a line is an address header (To/Cc/Bcc)
@@ -42,13 +56,32 @@ function M.parse_khard_line(line)
   }
 end
 
+--- Detect account from current buffer's From: header
+---@return string? account name
+function M.detect_account()
+  local lines = vim.api.nvim_buf_get_lines(0, 0, 20, false)
+  for _, l in ipairs(lines) do
+    if l == '' then break end
+    local from = l:match('^From:%s*(.+)')
+    if from then
+      for pattern, acct in pairs(M.config.from_map) do
+        if from:find(pattern) then return acct end
+      end
+    end
+  end
+  return nil
+end
+
 --- Query khard for contacts matching a string
 ---@param query string
 ---@return {email: string, name: string, type?: string}[]
 function M.query(query)
   if query == '' then return {} end
-  local cmd = { M.config.cmd }
-  vim.list_extend(cmd, M.config.args)
+  -- Pick account-specific config or fallback
+  local acct = M.detect_account()
+  local cmd_cfg = (acct and M.config.accounts[acct]) or { cmd = M.config.cmd, args = M.config.args }
+  local cmd = { cmd_cfg.cmd }
+  vim.list_extend(cmd, cmd_cfg.args)
   table.insert(cmd, query)
   local output = vim.fn.system(cmd)
   if vim.v.shell_error ~= 0 then return {} end
@@ -64,11 +97,8 @@ end
 
 function M.new(opts)
   local self = setmetatable({}, { __index = M })
-  if opts and opts.cmd then
-    M.config.cmd = opts.cmd
-  end
-  if opts and opts.args then
-    M.config.args = opts.args
+  if opts then
+    M.config = vim.tbl_deep_extend('force', M.config, opts)
   end
   return self
 end

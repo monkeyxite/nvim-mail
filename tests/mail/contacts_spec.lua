@@ -65,4 +65,34 @@ describe('mail.contacts', function()
       assert.is_nil(contacts.parse_khard_line(''))
     end)
   end)
+
+  describe('detect_account', function()
+    it('detects work account from From header', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'From: John <john@work.com>',
+        'To: someone@example.com',
+        '',
+        'body',
+      })
+      vim.api.nvim_set_current_buf(buf)
+      contacts.config.from_map = { ['work%.com'] = 'work', ['gmail%.com'] = 'personal' }
+      assert.equals('work', contacts.detect_account())
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('returns nil for unknown sender', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'From: John <john@unknown.org>',
+        'To: someone@example.com',
+        '',
+        'body',
+      })
+      vim.api.nvim_set_current_buf(buf)
+      contacts.config.from_map = { ['work%.com'] = 'work' }
+      assert.is_nil(contacts.detect_account())
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+  end)
 end)

@@ -69,23 +69,26 @@ function M.load_for_buffer(lines)
   local ls_snips = {}
   for _, snip in ipairs(snips) do
     local nodes = {}
-    local idx = 1
-    -- Parse ${N:placeholder} patterns into insert nodes
-    local remaining = snip.body
-    while true do
-      local pre, num, placeholder, post = remaining:match('^(.-)%${(%d+):([^}]*)}(.*)$')
-      if not pre then
-        -- No more placeholders, add remaining as text
-        if remaining ~= '' then
-          nodes[#nodes + 1] = t(vim.split(remaining, '\n'))
+    -- Split body into segments around ${N:placeholder}
+    local body = snip.body
+    local pos = 1
+    while pos <= #body do
+      local s_start, s_end, num, placeholder = body:find('%${(%d+):([^}]*)}', pos)
+      if not s_start then
+        -- Remaining text
+        local rest = body:sub(pos)
+        if rest ~= '' then
+          nodes[#nodes + 1] = t(vim.split(rest, '\n'))
         end
         break
       end
-      if pre ~= '' then
+      -- Text before placeholder
+      if s_start > pos then
+        local pre = body:sub(pos, s_start - 1)
         nodes[#nodes + 1] = t(vim.split(pre, '\n'))
       end
       nodes[#nodes + 1] = i(tonumber(num), placeholder)
-      remaining = post
+      pos = s_end + 1
     end
     if #nodes > 0 then
       ls_snips[#ls_snips + 1] = s(snip.trigger, nodes)
