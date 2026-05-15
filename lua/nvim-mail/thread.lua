@@ -22,10 +22,17 @@ function M.extract_msgid(lines)
   return nil
 end
 
---- Build notmuch command to show thread
+--- Build command to show thread (muttlook tui for readable output)
 ---@param msgid string
 ---@return string
 function M.build_cmd(msgid)
+  return string.format('notmuch show --format=raw id:%s | muttlook --action tui /dev/stdin', msgid)
+end
+
+--- Build fallback command (plain text, no muttlook)
+---@param msgid string
+---@return string
+function M.build_cmd_plain(msgid)
   return string.format('notmuch show --format=text --entire-thread=true thread:{id:%s}', msgid)
 end
 
@@ -39,12 +46,19 @@ function M.show(bufnr)
     vim.notify('No reply-to found — cannot show thread', vim.log.levels.WARN)
     return
   end
+
+  -- Try muttlook tui first, fallback to plain text
   local cmd = M.build_cmd(msgid)
   local output = vim.fn.system(cmd)
   if vim.v.shell_error ~= 0 then
-    vim.notify('notmuch failed: ' .. output, vim.log.levels.ERROR)
-    return
+    cmd = M.build_cmd_plain(msgid)
+    output = vim.fn.system(cmd)
+    if vim.v.shell_error ~= 0 then
+      vim.notify('notmuch failed: ' .. output, vim.log.levels.ERROR)
+      return
+    end
   end
+
   vim.cmd('vnew')
   vim.bo.buftype = 'nofile'
   vim.bo.filetype = 'mail'

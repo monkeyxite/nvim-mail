@@ -12,9 +12,10 @@ M.mention_patterns = {
 
 -- Patterns that indicate an actual attachment exists
 M.attachment_patterns = {
-  '<#part',       -- neomutt MIME attachment marker
+  '<#part',       -- neomutt MIME attachment marker (inline)
   '!%[',         -- markdown image
   'Content%-Disposition: attachment',
+  '^Attach:',    -- neomutt Attach: pseudo-header
 }
 
 --- Parse buffer lines into headers and body

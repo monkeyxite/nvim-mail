@@ -21,11 +21,13 @@ function M.setup(opts)
   local marker = require('nvim-mail.marker')
   local thread = require('nvim-mail.thread')
   local preview = require('nvim-mail.preview')
-  local contacts = require('nvim-mail.contacts')
   local snippets = require('nvim-mail.snippets')
 
   -- Apply user config
-  if opts.contacts then contacts.config = vim.tbl_deep_extend('force', contacts.config, opts.contacts) end
+  if opts.contacts then
+    local contacts = require('nvim-mail.contacts')
+    contacts.config = vim.tbl_deep_extend('force', contacts.config, opts.contacts)
+  end
   if opts.snippets then snippets.config = vim.tbl_deep_extend('force', snippets.config, opts.snippets) end
 
   -- Attachment awareness: warn on BufWritePre
@@ -52,18 +54,19 @@ function M.setup(opts)
     desc = 'Mail: muttlook marker extmark',
   })
 
-  -- Thread context: <leader>mt
-  vim.keymap.set('n', '<leader>mt', function()
+  -- Thread context: <localleader>mt
+  vim.keymap.set('n', '<localleader>mt', function()
     thread.show(0)
   end, { buffer = true, desc = '[T]hread context (notmuch)' })
 
-  -- Preview: <leader>mp
-  vim.keymap.set('n', '<leader>mp', function()
+  -- Preview: <localleader>mp
+  vim.keymap.set('n', '<localleader>mp', function()
     preview.show(0)
   end, { buffer = true, desc = '[P]review mail as HTML' })
 
-  -- Contact completion: register cmp source
-  contacts.register_cmp()
+  -- Contact completion: configured via blink-cmp provider in your blink config
+  -- Add to blink sources per_filetype: mail = { 'mail_contacts', ... }
+  -- Provider: { module = 'nvim-mail.contacts', name = 'Contacts' }
 
   -- Smart snippets: load context-aware snippets
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)

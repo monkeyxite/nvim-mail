@@ -68,9 +68,28 @@ function M.load_for_buffer(lines)
 
   local ls_snips = {}
   for _, snip in ipairs(snips) do
-    local parts = vim.split(snip.body, '\n')
-    -- Simple: use text nodes (no insert node parsing for now)
-    ls_snips[#ls_snips + 1] = s(snip.trigger, { t(parts) })
+    local nodes = {}
+    local idx = 1
+    -- Parse ${N:placeholder} patterns into insert nodes
+    local remaining = snip.body
+    while true do
+      local pre, num, placeholder, post = remaining:match('^(.-)%${(%d+):([^}]*)}(.*)$')
+      if not pre then
+        -- No more placeholders, add remaining as text
+        if remaining ~= '' then
+          nodes[#nodes + 1] = t(vim.split(remaining, '\n'))
+        end
+        break
+      end
+      if pre ~= '' then
+        nodes[#nodes + 1] = t(vim.split(pre, '\n'))
+      end
+      nodes[#nodes + 1] = i(tonumber(num), placeholder)
+      remaining = post
+    end
+    if #nodes > 0 then
+      ls_snips[#ls_snips + 1] = s(snip.trigger, nodes)
+    end
   end
 
   ls.add_snippets('mail', ls_snips, { key = 'nvim-mail-' .. ctx })

@@ -1,4 +1,4 @@
--- Contact completion: nvim-cmp source for khard
+-- Contact completion: blink-cmp provider for khard
 local M = {}
 
 M.config = {
@@ -19,7 +19,6 @@ end
 ---@param line string
 ---@return string
 function M.extract_query(line)
-  -- After last comma, or after the header colon
   local after_comma = line:match(',([^,]*)$')
   if after_comma then return vim.trim(after_comma) end
   local after_colon = line:match('^%a+:%s*(.*)$')
@@ -58,49 +57,41 @@ function M.query(query)
   return results
 end
 
---- Register as nvim-cmp source
-function M.register_cmp()
-  local ok, cmp = pcall(require, 'cmp')
-  if not ok then return end
+--- Blink-cmp provider module interface
+M.provider = {}
 
-  local source = {}
-  source.new = function() return setmetatable({}, { __index = source }) end
+function M.provider.new()
+  return setmetatable({}, { __index = M.provider })
+end
 
-  function source:is_available()
-    return vim.bo.filetype == 'mail'
+function M.provider:enabled()
+  return vim.bo.filetype == 'mail'
+end
+
+function M.provider:get_completions(ctx, callback)
+  local line = ctx.line
+  if not M.is_header_line(line) then
+    callback({ items = {}, is_incomplete_forward = false })
+    return
   end
-
-  function source:get_trigger_characters()
-    return { ',', ' ' }
+  local query = M.extract_query(line)
+  if #query < 2 then
+    callback({ items = {}, is_incomplete_forward = true })
+    return
   end
-
-  function source:complete(params, callback)
-    local line = params.context.cursor_before_line
-    if not M.is_header_line(line) then
-      callback({ items = {}, isIncomplete = false })
-      return
+  vim.schedule(function()
+    local results = M.query(query)
+    local items = {}
+    for _, r in ipairs(results) do
+      items[#items + 1] = {
+        label = string.format('%s <%s>', r.name, r.email),
+        insertText = string.format('%s <%s>', r.name, r.email),
+        detail = r.type or '',
+        kind = 12,
+      }
     end
-    local query = M.extract_query(line)
-    if #query < 2 then
-      callback({ items = {}, isIncomplete = true })
-      return
-    end
-    vim.schedule(function()
-      local results = M.query(query)
-      local items = {}
-      for _, r in ipairs(results) do
-        items[#items + 1] = {
-          label = string.format('%s <%s>', r.name, r.email),
-          insertText = string.format('%s <%s>', r.name, r.email),
-          detail = r.type or '',
-          kind = 12, -- Value (cmp.lsp.CompletionItemKind)
-        }
-      end
-      callback({ items = items, isIncomplete = false })
-    end)
-  end
-
-  cmp.register_source('mail_contacts', source)
+    callback({ items = items, is_incomplete_forward = false })
+  end)
 end
 
 return M
