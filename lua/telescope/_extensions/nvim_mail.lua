@@ -45,7 +45,7 @@ local function search(opts)
         }
       end,
     }),
-    sorter = conf.generic_sorter(opts),
+    sorter = require('telescope.sorters').empty(),
     attach_mappings = function(prompt_bufnr, map)
       -- Enter: open in neomutt
       actions.select_default:replace(function()
