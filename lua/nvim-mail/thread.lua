@@ -22,18 +22,14 @@ function M.extract_msgid(lines)
   return nil
 end
 
---- Build command to show thread (muttlook tui for readable output)
+--- Build command to show thread (nm-html-extract for readable output)
 ---@param msgid string
 ---@return string
 function M.build_cmd(msgid)
-  -- Write raw message to tmp, then render with muttlook
-  return string.format(
-    'tmp=$(mktemp) && notmuch show --format=raw id:%s > "$tmp" && muttlook --action tui "$tmp"; rm -f "$tmp"',
-    msgid
-  )
+  return string.format('nm-html-extract %s', msgid)
 end
 
---- Build fallback command (plain text, no muttlook)
+--- Build fallback command (plain text, no rendering)
 ---@param msgid string
 ---@return string
 function M.build_cmd_plain(msgid)
