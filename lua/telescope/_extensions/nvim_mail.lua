@@ -72,7 +72,4 @@ return require('telescope').register_extension({
   exports = {
     search = search,
   },
-  setup = function()
-    vim.keymap.set('n', '<leader>sm', search, { desc = '[S]earch [M]ail' })
-  end,
 })
