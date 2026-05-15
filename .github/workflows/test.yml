@@ -1,0 +1,21 @@
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.10.0
+      - name: Install plenary.nvim
+        run: |
+          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim /tmp/plenary.nvim
+      - name: Run tests
+        run: |
+          nvim --headless --clean \
+            -u tests/minimal_init.lua \
+            --cmd "set rtp+=/tmp/plenary.nvim" \
+            -c "PlenaryBustedDirectory tests/mail/ {minimal_init = 'tests/minimal_init.lua', sequential = true}" 2>&1 | tee /tmp/test_output.txt
+          grep -q "Failed : .*0" /tmp/test_output.txt

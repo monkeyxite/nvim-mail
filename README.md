@@ -1,26 +1,72 @@
-# nvim-mail
+<div align="center">
 
-Neovim Lua plugin for mail compose enhancements. Replaces `vim-mail` with a pure Lua implementation. Designed for neomutt + nvr workflow.
+```
+                 ╭─────────────────────────────╮
+                 │   ✉️  nvim-mail              │
+                 │                             │
+                 │   ⚡ Neovim mail compose    │
+                 │      enhancements           │
+                 │                             │
+                 │   neomutt · notmuch · lua   │
+                 ╰─────────────────────────────╯
+```
 
-## Features
+[![Tests](https://github.com/monkeyxite/nvim-mail/actions/workflows/test.yml/badge.svg)](https://github.com/monkeyxite/nvim-mail/actions)
+[![Neovim](https://img.shields.io/badge/Neovim-0.10%2B-57A143?logo=neovim&logoColor=white)](https://neovim.io)
+[![Lua](https://img.shields.io/badge/Lua-5.1%2B-2C2D72?logo=lua&logoColor=white)](https://www.lua.org)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-- **Navigation** — jump to headers (To/Cc/Bcc/Subject/From/Reply-To), body, signature, quoted reply
-- **Switch From** — select sender from configured address list
-- **Kill quoted sig** — remove quoted signatures from replies
-- **Spell lang cycling** — cycle through configured spell languages
-- **Attachment awareness** — warns on save if body mentions "attach/enclosed/PFA" but no attachment marker found
-- **Muttlook marker visibility** — shows `↩ replying to:` and `🔗 thread:` as virtual text over raw markers
-- **Thread context** — opens the replied-to message rendered via `nm-html-extract` in a terminal split below (ANSI colors)
-- **Contact completion** — blink-cmp provider for khard, scoped by account (work/personal based on From: header)
-- **Markdown preview** — renders mail body via pandoc and opens in browser
-- **Smart snippets** — context-aware snippets via vscode JSON format (luasnip)
+</div>
 
-## Install
+---
 
-lazy.nvim (local path):
+Pure Lua replacement for [vim-mail](https://github.com/dbeniamine/vim-mail). Designed for the **neomutt + nvr + notmuch** workflow.
+
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| 📎 **Attachment awareness** | Warns on save if body mentions "attach" but no attachment marker found |
+| 🔗 **Muttlook markers** | Shows `↩ replying to:` and `🔗 thread:` as virtual text |
+| 📜 **Thread context** | Opens replied-to message rendered in terminal split below |
+| 📇 **Contact completion** | blink-cmp provider for khard, scoped by account |
+| 👁️ **Markdown preview** | Renders draft via muttlook and opens in browser |
+| ✂️ **Smart snippets** | Context-aware snippets by recipient domain |
+| 🧭 **Navigation** | Jump to headers, body, signature, quotes |
+| 🔄 **Switch From** | Select sender from configured address list |
+| 🗑️ **Kill quoted sig** | Remove quoted signatures from replies |
+| 🌐 **Spell cycling** | Cycle through configured spell languages |
+
+## 📦 Dependencies
+
+```mermaid
+graph LR
+    A[nvim-mail] --> B[neomutt]
+    A --> C[notmuch]
+    A --> D[muttlook]
+    A --> E[khard]
+    D --> C
+    D --> F[pandoc]
+    B --> C
+
+    style A fill:#57A143,color:#fff
+    style D fill:#e06c75,color:#fff
+```
+
+| Tool | Used by | Required |
+|------|---------|----------|
+| [muttlook](https://github.com/monkeyxite/muttlook) | Thread context, Preview | Yes |
+| [notmuch](https://notmuchmail.org) | Thread context | Yes |
+| [khard](https://github.com/lucc/khard) | Contact completion | Yes |
+| [blink.cmp](https://github.com/Saghen/blink.cmp) | Completion framework | Optional |
+| [luasnip](https://github.com/L3MON4D3/LuaSnip) | Snippet expansion | Optional |
+
+## 🚀 Install
+
+**lazy.nvim:**
 ```lua
 {
-  dir = '~/codebase/tools/nvim-mail',
+  'monkeyxite/nvim-mail',
   ft = 'mail',
   opts = {
     from_list = {
@@ -39,89 +85,76 @@ lazy.nvim (local path):
 }
 ```
 
-## Keymaps
+## ⌨️ Keymaps
 
 All under configurable prefix (default `,m`):
 
-### Navigation (replaces vim-mail)
+### Navigation
 
 | Key | Action |
 |-----|--------|
-| `,mt` | Go to To: field |
-| `,mc` | Go to Cc: field |
-| `,mb` | Go to Bcc: field |
-| `,ms` | Go to Subject: field |
-| `,mf` | Go to From: field |
+| `,mt` | Go to To: |
+| `,mc` | Go to Cc: |
+| `,mb` | Go to Bcc: |
+| `,ms` | Go to Subject: |
+| `,mf` | Go to From: |
 | `,mF` | Switch From address |
-| `,mR` | Go to Reply-To: field |
+| `,mR` | Go to Reply-To: |
 | `,mB` | Jump to body |
 | `,mS` | Jump to signature |
-| `,mr` | Jump to first quoted line |
-| `,mE` | End of reply (before quotes) |
-| `,mk` | Kill quoted signature |
-| `,ml` | Cycle spell language |
+| `,mr` | Jump to first quote |
+| `,mE` | End of reply |
+| `,mk` | Kill quoted sig |
+| `,ml` | Cycle spell lang |
 
-### New features
+### Compose enhancements
 
 | Key | Action |
 |-----|--------|
-| `,mT` | Thread context (nm-html-extract in terminal split) |
-| `,mp` | Preview mail body as HTML in browser |
+| `,mT` | Thread context (terminal split) |
+| `,mp` | Preview as HTML (muttlook) |
 
 ### Automatic
 
 | Trigger | Action |
 |---------|--------|
-| `:w` | Warns if "attach" mentioned but no attachment marker |
-| Buffer open | Muttlook markers shown as virtual text |
-| Completion | khard contacts on To:/Cc:/Bcc: lines (blink-cmp) |
+| `:w` | Attachment mention warning |
+| Buffer open | Muttlook marker extmarks |
+| `To:/Cc:/Bcc:` | Contact completion (blink-cmp) |
 
-## Snippets
+## 🎯 Snippets
 
-Loaded via vscode JSON format at `snips/snippets/mail.json`:
+Via vscode JSON format (`snips/snippets/mail.json`):
 
 | Trigger | Expands to |
 |---------|-----------|
-| `mbr` | Best regards,\n[name] |
+| `mbr` | Best regards,\n*name* |
 | `mty` | Thanks for the update. |
 | `mpfa` | Please find attached. |
-| `mfyi` | FYI — [context]. |
-| `mack` | Acknowledged, will follow up by [date]. |
-| `mch` | Cheers,\n[name] |
+| `mfyi` | FYI — *context*. |
+| `mack` | Acknowledged, will follow up by *date*. |
+| `mch` | Cheers,\n*name* |
 | `mlmk` | Let me know what you think. |
-| `msig` | Best,\n[name] |
+| `msig` | Best,\n*name* |
 
-## Dependencies
-
-| Tool | Used by | Required |
-|------|---------|----------|
-| `notmuch` | Thread context | Yes (for `,mT`) |
-| `nm-html-extract` | Thread rendering | Yes (for `,mT`) |
-| `muttlook` | Thread rendering (via nm-html-extract) | Yes (for `,mT`) |
-| `pandoc` | Markdown preview | Yes (for `,mp`) |
-| `khard` | Contact completion | Yes (for contacts) |
-| `blink.cmp` | Completion framework | Optional |
-| `luasnip` | Snippet expansion | Optional |
-
-## Configuration
+## ⚙️ Configuration
 
 ```lua
 require('nvim-mail').setup({
-  prefix = ',m',           -- keymap prefix
-  from_list = {},          -- addresses for ,mF switch
-  spell_langs = { 'en' },  -- languages for ,ml cycling
+  prefix = ',m',
+  from_list = {},
+  spell_langs = { 'en' },
   contacts = {
-    cmd = 'khard',         -- fallback contact command
+    cmd = 'khard',
     args = { 'email', '-p', '--remove-first-line' },
-    from_map = {},         -- From: pattern → account name
-    accounts = {},         -- per-account { cmd, args }
+    from_map = {},
+    accounts = {},
   },
 })
 ```
 
 ### Blink-cmp provider
 
-Add to your blink config:
 ```lua
 sources = {
   per_filetype = {
@@ -138,30 +171,33 @@ sources = {
 }
 ```
 
-## Tests
+## 🧪 Tests
 
 ```bash
-cd ~/codebase/tools/nvim-mail
 nvim --headless --clean -u tests/minimal_init.lua \
   -c "PlenaryBustedDirectory tests/mail/ {minimal_init = 'tests/minimal_init.lua'}"
 ```
 
-51 tests covering: attachment detection, marker parsing, thread commands, navigation, contacts, snippets, preview.
+52 tests covering: attachment detection, marker parsing, thread commands, navigation, contacts, snippets, preview.
 
-## Structure
+## 📁 Structure
 
 ```
 lua/nvim-mail/
 ├── init.lua        — setup, keymaps, autocmds
 ├── attachment.lua  — attachment mention detection
-├── marker.lua      — muttlook marker extmarks (reply-to + references)
+├── marker.lua      — muttlook marker extmarks
 ├── thread.lua      — nm-html-extract thread in terminal split
-├── contacts.lua    — blink-cmp provider for khard (per-account)
-├── preview.lua     — pandoc HTML preview
-├── snippets.lua    — context detection (snippets via vscode JSON)
+├── contacts.lua    — blink-cmp provider for khard
+├── preview.lua     — muttlook draft preview
+├── snippets.lua    — context detection
 └── navigate.lua    — header/body/signature navigation
 ```
 
-## Migrating from vim-mail
+## 🔄 Migrating from vim-mail
 
-This plugin replaces `dbeniamine/vim-mail`. Remove it from your lazy config and use nvim-mail instead. All vim-mail navigation keys are preserved under the same `,m` prefix.
+Drop-in replacement for `dbeniamine/vim-mail`. All navigation keys preserved under the same `,m` prefix. Remove vim-mail from your plugin manager and add nvim-mail instead.
+
+## 📄 License
+
+MIT
