@@ -6,6 +6,8 @@ local function get_msgid_cmd(thread)
   return 'notmuch search --output=messages --limit=1 thread:' .. thread .. ' | sed "s/^id://"'
 end
 
+local strip_ansi = [[sed 's/]].. '\027' .. [[[[][0-9;]*m//g']]
+
 local function search(opts)
   opts = opts or {}
   local pickers = require('telescope.pickers')
@@ -41,7 +43,7 @@ local function search(opts)
       title = 'Mail Preview',
       define_preview = function(self, entry)
         if not entry or not entry.thread then return end
-        local cmd = 'msgid=$(' .. get_msgid_cmd(entry.thread) .. ') && nm-html-extract "$msgid" | sed "s/\x1b\[[0-9;]*m//g"'
+        local cmd = 'msgid=$(' .. get_msgid_cmd(entry.thread) .. ') && nm-html-extract "$msgid" | ' .. strip_ansi
         local output = vim.fn.system({ 'sh', '-c', cmd })
         vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, vim.split(output, '\n'))
         vim.bo[self.state.bufnr].filetype = 'mail'
@@ -68,15 +70,13 @@ local function search(opts)
         end
       end)
 
-      -- Ctrl+r: reply — open draft in nvim buffer
+      -- Ctrl+r: reply — muttlook draft → neomutt → nvr
       map({ 'i', 'n' }, '<C-r>', function()
         actions.close(prompt_bufnr)
         local entry = action_state.get_selected_entry()
         if entry and entry.thread then
-          -- Get raw message, pipe to muttlook draft, open result in nvim
           vim.fn.system('sh -c \'msgid=$(' .. get_msgid_cmd(entry.thread) .. ') && notmuch show --format=raw "id:$msgid" | muttlook --action draft\'')
           local draft = vim.fn.expand('~/.cache/muttlook/mimelook.html')
-          -- Open neomutt with the draft (neomutt handles compose view)
           vim.cmd('terminal neomutt -H ' .. vim.fn.shellescape(draft))
         end
       end)
@@ -117,7 +117,7 @@ local function search(opts)
         end
       end)
 
-      -- Ctrl+p: open full preview in scrollable split below
+      -- Ctrl+p: open full preview in scrollable split below (with ANSI colors)
       map({ 'i', 'n' }, '<C-p>', function()
         actions.close(prompt_bufnr)
         local entry = action_state.get_selected_entry()
