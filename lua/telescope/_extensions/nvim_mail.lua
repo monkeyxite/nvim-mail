@@ -66,12 +66,16 @@ local function search(opts)
         end
       end)
 
-      -- Ctrl+r: reply via muttlook
+      -- Ctrl+r: reply — open draft in nvim buffer
       map({ 'i', 'n' }, '<C-r>', function()
         actions.close(prompt_bufnr)
         local entry = action_state.get_selected_entry()
         if entry and entry.thread then
-          vim.cmd('terminal sh -c \'msgid=$(' .. get_msgid_cmd(entry.thread) .. ') && notmuch show --format=raw "id:$msgid" | muttlook --action draft && neomutt -H ~/.cache/muttlook/mimelook.html\'')
+          -- Get raw message, pipe to muttlook draft, open result in nvim
+          vim.fn.system('sh -c \'msgid=$(' .. get_msgid_cmd(entry.thread) .. ') && notmuch show --format=raw "id:$msgid" | muttlook --action draft\'')
+          local draft = vim.fn.expand('~/.cache/muttlook/mimelook.html')
+          -- Open neomutt with the draft (neomutt handles compose view)
+          vim.cmd('terminal neomutt -H ' .. vim.fn.shellescape(draft))
         end
       end)
 
