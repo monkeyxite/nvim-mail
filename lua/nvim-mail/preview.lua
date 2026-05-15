@@ -1,4 +1,4 @@
--- Inline markdown preview: render mail body as HTML and open in browser
+-- Inline markdown preview: render mail draft via muttlook (with thread history)
 local M = {}
 
 local marker = require('nvim-mail.marker')
@@ -22,33 +22,41 @@ function M.extract_body(lines)
   return body
 end
 
---- Build pandoc command for markdown → HTML
+--- Build pandoc command for markdown → HTML (fallback)
 ---@return string
 function M.build_cmd()
   return 'pandoc -f markdown -t html5 --standalone --metadata title=Preview'
 end
 
---- Preview current buffer's body as HTML in browser
+--- Preview current buffer via muttlook --action draft (primary)
+--- Renders markdown with template, joins with thread history via marker
 ---@param bufnr? integer
 function M.show(bufnr)
   bufnr = bufnr or 0
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local body = M.extract_body(lines)
-  local text = table.concat(body, '\n')
+  local text = table.concat(lines, '\n')
 
-  local cmd = M.build_cmd()
-  local html = vim.fn.system(cmd, text)
-  if vim.v.shell_error ~= 0 then
-    vim.notify('pandoc failed: ' .. html, vim.log.levels.ERROR)
-    return
-  end
-
-  local tmp = '/tmp/nvim-mail-preview.html'
-  local f = io.open(tmp, 'w')
-  if f then
-    f:write(html)
-    f:close()
-    vim.fn.system({ 'open', tmp })
+  -- Use muttlook --action draft (handles markers, thread history, template)
+  local output = vim.fn.system('muttlook --action draft', text)
+  if vim.v.shell_error == 0 then
+    local html = vim.fn.expand('~/.cache/muttlook/mimelook.html')
+    vim.fn.system({ 'open', html })
+  else
+    -- Fallback to plain pandoc
+    local body = M.extract_body(lines)
+    local body_text = table.concat(body, '\n')
+    local html = vim.fn.system(M.build_cmd(), body_text)
+    if vim.v.shell_error ~= 0 then
+      vim.notify('Preview failed: ' .. html, vim.log.levels.ERROR)
+      return
+    end
+    local tmp = '/tmp/nvim-mail-preview.html'
+    local f = io.open(tmp, 'w')
+    if f then
+      f:write(html)
+      f:close()
+      vim.fn.system({ 'open', tmp })
+    end
   end
 end
 
