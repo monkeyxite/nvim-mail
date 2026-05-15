@@ -1,16 +1,17 @@
 -- nvim-mail: Neovim mail compose enhancements
--- Attachment awareness, muttlook marker visibility, thread context,
--- contact completion, preview, and smart snippets.
+-- Replaces vim-mail with pure Lua: navigation, attachment awareness,
+-- muttlook markers, thread context, contacts, preview, snippets.
 local M = {}
 
 M.config = {
-  -- Contact completion
   contacts = {
     cmd = 'khard',
     args = { 'email', '-p', '--remove-first-line' },
   },
-  -- Snippet domain→context mapping (override in setup)
   snippets = nil,
+  from_list = {},
+  spell_langs = { 'en', 'sv' },
+  prefix = ',m', -- keymap prefix (localleader-based)
 }
 
 function M.setup(opts)
@@ -22,6 +23,7 @@ function M.setup(opts)
   local thread = require('nvim-mail.thread')
   local preview = require('nvim-mail.preview')
   local snippets = require('nvim-mail.snippets')
+  local nav = require('nvim-mail.navigate')
 
   -- Apply user config
   if opts.contacts then
@@ -29,6 +31,30 @@ function M.setup(opts)
     contacts.config = vim.tbl_deep_extend('force', contacts.config, opts.contacts)
   end
   if opts.snippets then snippets.config = vim.tbl_deep_extend('force', snippets.config, opts.snippets) end
+
+  local p = M.config.prefix
+  local map = function(key, fn, desc)
+    vim.keymap.set('n', p .. key, fn, { buffer = true, desc = desc })
+  end
+
+  -- === Navigation (replaces vim-mail) ===
+  map('t', function() nav.goto_field('^[Tt]o:', 'A') end, ' To:')
+  map('c', function() nav.goto_field('^[Cc]c:', 'A') end, ' Cc:')
+  map('b', function() nav.goto_field('^[Bb]cc:', 'A') end, ' Bcc:')
+  map('s', function() nav.goto_field('^[Ss]ubject:', 'A') end, ' Subject:')
+  map('f', function() nav.goto_field('^[Ff]rom:', 'A') end, ' From:')
+  map('F', function() nav.switch_from(M.config.from_list) end, ' Switch From')
+  map('R', function() nav.goto_field('^[Rr]eply%-[Tt]o:', 'A') end, ' Reply-To:')
+  map('B', function() nav.goto_body() end, ' Body')
+  map('S', function() nav.goto_signature() end, ' Signature')
+  map('r', function() nav.goto_reply() end, ' Jump to reply')
+  map('E', function() nav.goto_end_of_reply() end, ' End of reply')
+  map('k', function() nav.kill_quoted_sig() end, ' Kill quoted sig')
+  map('l', function() nav.switch_spell(M.config.spell_langs) end, ' Switch spell')
+
+  -- === New features ===
+  map('T', function() thread.show(0) end, ' Thread context')
+  map('p', function() preview.show(0) end, ' Preview HTML')
 
   -- Attachment awareness: warn on BufWritePre
   vim.api.nvim_create_autocmd('BufWritePre', {
@@ -53,20 +79,6 @@ function M.setup(opts)
     callback = function() marker.apply(0) end,
     desc = 'Mail: muttlook marker extmark',
   })
-
-  -- Thread context: <localleader>mt
-  vim.keymap.set('n', '<localleader>mt', function()
-    thread.show(0)
-  end, { buffer = true, desc = '[T]hread context (notmuch)' })
-
-  -- Preview: <localleader>mp
-  vim.keymap.set('n', '<localleader>mp', function()
-    preview.show(0)
-  end, { buffer = true, desc = '[P]review mail as HTML' })
-
-  -- Contact completion: configured via blink-cmp provider in your blink config
-  -- Add to blink sources per_filetype: mail = { 'mail_contacts', ... }
-  -- Provider: { module = 'nvim-mail.contacts', name = 'Contacts' }
 
   -- Smart snippets: load context-aware snippets
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
