@@ -44,7 +44,11 @@ local function search(opts)
     previewer = previewers.new_termopen_previewer({
       get_command = function(entry)
         if not entry or not entry.thread then return { 'echo', 'No thread' } end
-        return { 'notmuch', 'show', '--format=text', 'thread:' .. entry.thread }
+        -- Use nm-html-extract for styled preview (same as nms)
+        -- Get latest message-id from thread, render with nm-html-extract
+        return { 'sh', '-c',
+          'msgid=$(notmuch search --output=messages --limit=1 thread:' .. entry.thread .. ' | sed "s/^id://") && nm-html-extract "$msgid"'
+        }
       end,
     }),
     sorter = conf.generic_sorter(opts),
