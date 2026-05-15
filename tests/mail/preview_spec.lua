@@ -44,4 +44,36 @@ describe('mail.preview', function()
       assert.is_truthy(cmd:find('html'))
     end)
   end)
+
+  describe('show (integration)', function()
+    it('writes original.msg from headers for thread lookup', function()
+      local lines = read_fixture('draft_reply_no_marker.txt')
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      vim.api.nvim_set_current_buf(buf)
+
+      -- Extract headers like preview.show does
+      local headers = {}
+      for _, l in ipairs(lines) do
+        if l == '' then break end
+        headers[#headers + 1] = l
+      end
+
+      local cache_dir = vim.fn.expand('~/.cache/muttlook')
+      vim.fn.mkdir(cache_dir, 'p')
+      local org_path = cache_dir .. '/original.msg'
+      local f = io.open(org_path, 'w')
+      f:write(table.concat(headers, '\n') .. '\n\n')
+      f:close()
+
+      -- Verify original.msg has In-Reply-To
+      local content = io.open(org_path):read('*a')
+      assert.is_truthy(content:find('In%-Reply%-To:'))
+      assert.is_truthy(content:find('plain%-parent%-id@example%.com'))
+
+      -- Cleanup
+      os.remove(org_path)
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+  end)
 end)

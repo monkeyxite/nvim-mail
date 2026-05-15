@@ -1,0 +1,9 @@
+From: John Doe <john@example.com>
+To: someone@example.com
+Subject: Re: Plain text thread
+In-Reply-To: <plain-parent-id@example.com>
+
+My reply to a plain text email.
+
+Best,
+John
