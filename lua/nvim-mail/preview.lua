@@ -34,11 +34,27 @@ end
 function M.show(bufnr)
   bufnr = bufnr or 0
 
-  -- Save the file first (muttlook reads from pipe of the saved file)
+  -- Save the file first
   vim.cmd('write')
   local file = vim.fn.expand('%')
 
-  -- Pipe the full file to muttlook (same as ,m macro: cat % | muttlook --action draft)
+  -- Write original.msg from draft headers so muttlook can find the replied-to message
+  -- (muttlook falls back to original.msg when no marker is present)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local headers = {}
+  for _, l in ipairs(lines) do
+    if l == '' then break end
+    headers[#headers + 1] = l
+  end
+  local cache_dir = vim.fn.expand('~/.cache/muttlook')
+  vim.fn.mkdir(cache_dir, 'p')
+  local org = io.open(cache_dir .. '/original.msg', 'w')
+  if org then
+    org:write(table.concat(headers, '\n') .. '\n\n')
+    org:close()
+  end
+
+  -- Pipe the full file to muttlook (same as ,m macro)
   vim.fn.system('cat ' .. vim.fn.shellescape(file) .. ' | muttlook --action draft')
   if vim.v.shell_error == 0 then
     local html = vim.fn.expand('~/.cache/muttlook/mimelook.html')
