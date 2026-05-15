@@ -1,4 +1,4 @@
-From: Jonny Hou <jonny.hou@ericsson.com>
+From: John Doe <john@example.com>
 To: someone@example.com
 Subject: Meeting tomorrow
 
@@ -7,4 +7,4 @@ Hi,
 Let's meet at 10am tomorrow.
 
 Best regards,
-Jonny
+John

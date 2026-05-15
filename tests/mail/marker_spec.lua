@@ -16,7 +16,7 @@ describe('mail.marker', function()
       local lines = read_fixture('draft_with_marker.txt')
       local line_idx, msgid = marker.find_marker(lines)
       assert.is_not_nil(line_idx)
-      assert.equals('<abc123@mail.ericsson.com>', msgid)
+      assert.equals('<abc123@mail.example.com>', msgid)
     end)
 
     it('returns nil when no marker present', function()

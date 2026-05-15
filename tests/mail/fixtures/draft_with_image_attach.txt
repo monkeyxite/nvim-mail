@@ -1,4 +1,4 @@
-From: Jonny Hou <jonny.hou@ericsson.com>
+From: John Doe <john@example.com>
 To: someone@example.com
 Subject: Screenshots
 
@@ -9,4 +9,4 @@ Please see the attached screenshot.
 ![screenshot](~/.cache/muttlook/paste_20260515.png)
 
 Best regards,
-Jonny
+John

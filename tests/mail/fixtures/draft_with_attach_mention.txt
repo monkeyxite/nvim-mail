@@ -1,4 +1,4 @@
-From: Jonny Hou <jonny.hou@ericsson.com>
+From: John Doe <john@example.com>
 To: someone@example.com
 Subject: Report
 
@@ -7,4 +7,4 @@ Hi,
 Please find attached the Q2 report.
 
 Best regards,
-Jonny
+John
