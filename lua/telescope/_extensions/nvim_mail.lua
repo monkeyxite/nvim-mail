@@ -111,6 +111,17 @@ local function search(opts)
         end
       end)
 
+      -- Ctrl+p: open full preview in scrollable split below
+      map({ 'i', 'n' }, '<C-p>', function()
+        actions.close(prompt_bufnr)
+        local entry = action_state.get_selected_entry()
+        if entry and entry.thread then
+          vim.cmd('below new')
+          vim.fn.termopen('sh -c \'msgid=$(' .. get_msgid_cmd(entry.thread) .. ') && nm-html-extract "$msgid"\'')
+          vim.bo.swapfile = false
+        end
+      end)
+
       return true
     end,
   }):find()
