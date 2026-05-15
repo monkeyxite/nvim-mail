@@ -36,7 +36,7 @@ function M.build_cmd_plain(msgid)
   return string.format('notmuch show --format=text --entire-thread=true thread:{id:%s}', msgid)
 end
 
---- Open thread context in a vsplit
+--- Open thread context in a vsplit with ANSI color support
 ---@param bufnr? integer
 function M.show(bufnr)
   bufnr = bufnr or 0
@@ -47,25 +47,18 @@ function M.show(bufnr)
     return
   end
 
-  -- Try muttlook tui first, fallback to plain text
-  local cmd = M.build_cmd(msgid)
-  local output = vim.fn.system(cmd)
-  if vim.v.shell_error ~= 0 then
-    cmd = M.build_cmd_plain(msgid)
-    output = vim.fn.system(cmd)
-    if vim.v.shell_error ~= 0 then
-      vim.notify('notmuch failed: ' .. output, vim.log.levels.ERROR)
-      return
-    end
-  end
-
+  -- Open terminal buffer running nm-html-extract (renders ANSI natively)
   vim.cmd('vnew')
-  vim.bo.buftype = 'nofile'
-  vim.bo.filetype = 'mail'
+  vim.fn.termopen(M.build_cmd(msgid), {
+    on_exit = function()
+      vim.bo.modifiable = false
+    end,
+  })
   vim.bo.swapfile = false
   vim.api.nvim_buf_set_name(0, '[Thread: ' .. msgid:sub(1, 30) .. ']')
-  vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(output, '\n'))
-  vim.bo.modifiable = false
+  -- Enter normal mode after terminal opens
+  vim.cmd('normal! G')
+  vim.cmd('normal! gg')
 end
 
 return M
