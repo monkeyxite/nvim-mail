@@ -1,0 +1,12 @@
+From: John Doe <john@example.com>
+To: someone@example.com
+Subject: Re: Thread discussion
+In-Reply-To: <parent-id@example.com>
+
+My reply to the thread.
+
+Best,
+John
+
+[//]: # (muttlook-reply-to:<parent-id@example.com>)
+[//]: # (muttlook-references:<first@example.com> <parent-id@example.com>)
