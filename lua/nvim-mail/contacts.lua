@@ -1,4 +1,7 @@
 -- Contact completion: blink-cmp provider for khard
+---@module 'blink.cmp'
+
+---@class nvim-mail.contacts.Source : blink.cmp.Source
 local M = {}
 
 M.config = {
@@ -57,18 +60,24 @@ function M.query(query)
   return results
 end
 
---- Blink-cmp provider module interface
-M.provider = {}
+--- blink-cmp provider interface
 
-function M.provider.new()
-  return setmetatable({}, { __index = M.provider })
+function M.new(opts)
+  local self = setmetatable({}, { __index = M })
+  if opts and opts.cmd then
+    M.config.cmd = opts.cmd
+  end
+  if opts and opts.args then
+    M.config.args = opts.args
+  end
+  return self
 end
 
-function M.provider:enabled()
+function M:enabled()
   return vim.bo.filetype == 'mail'
 end
 
-function M.provider:get_completions(ctx, callback)
+function M:get_completions(ctx, callback)
   local line = ctx.line
   if not M.is_header_line(line) then
     callback({ items = {}, is_incomplete_forward = false })
