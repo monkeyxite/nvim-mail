@@ -117,8 +117,8 @@ local function search(opts)
         end
       end)
 
-      -- Ctrl+p: open full preview in scrollable split below (with ANSI colors)
-      map({ 'i', 'n' }, '<C-p>', function()
+      -- Ctrl+l: open full preview in scrollable split below (with ANSI colors)
+      map({ 'i', 'n' }, '<C-l>', function()
         actions.close(prompt_bufnr)
         local entry = action_state.get_selected_entry()
         if entry and entry.thread then
