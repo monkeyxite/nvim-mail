@@ -1,3 +1,9 @@
 -- nvim-mail ftplugin loader
--- Place in ftplugin/mail.lua or call require('nvim-mail').setup() from your own ftplugin
-require('nvim-mail').setup()
+-- Called per-buffer. If setup was already called with opts (by lazy.nvim),
+-- just apply buffer-local features. Otherwise call setup with defaults.
+local M = require('nvim-mail')
+if M._configured then
+  M.setup(M.config)
+else
+  M.setup()
+end

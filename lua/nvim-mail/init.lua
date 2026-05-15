@@ -1,6 +1,6 @@
 -- nvim-mail: Neovim mail compose enhancements
 -- Replaces vim-mail with pure Lua: navigation, attachment awareness,
--- muttlook markers, thread context, contacts, preview, snippets.
+-- muttlook markers, thread context, contacts, preview, snippets, send.
 local M = {}
 
 M.config = {
@@ -11,12 +11,31 @@ M.config = {
   snippets = nil,
   from_list = {},
   spell_langs = { 'en', 'sv' },
-  prefix = ',m', -- keymap prefix (localleader-based)
+  prefix = ',m', -- keymap prefix
+  -- Account detection for send: pattern → neomutt account source
+  send_accounts = {
+    -- ['ericsson'] = '-e "source ~/.config/mutt/accounts/2-work.muttrc"',
+    -- ['monkeyxite'] = '-e "source ~/.config/mutt/accounts/1-monkeyxite@gmail.com.muttrc"',
+    -- ['gmail'] = '-e "source ~/.config/mutt/accounts/1-monkeyxite@gmail.com.muttrc"',
+  },
 }
+
+-- Register filetype detection (eml files, neomutt temp files)
+vim.filetype.add({
+  extension = { eml = 'mail' },
+  pattern = {
+    ['/tmp/neomutt%-.*'] = 'mail',
+    ['/tmp/mutt%-.*'] = 'mail',
+  },
+})
 
 function M.setup(opts)
   opts = opts or {}
-  M.config = vim.tbl_deep_extend('force', M.config, opts)
+  -- Only merge opts into config on first call (lazy.nvim opts)
+  if not M._configured then
+    M.config = vim.tbl_deep_extend('force', M.config, opts)
+    M._configured = true
+  end
 
   local attachment = require('nvim-mail.attachment')
   local marker = require('nvim-mail.marker')
@@ -55,6 +74,92 @@ function M.setup(opts)
   -- === New features ===
   map('T', function() thread.show(0) end, ' Thread context')
   map('p', function() preview.show(0) end, ' Preview HTML')
+
+  -- === Send mail (replaces vim-mail ,mm) ===
+  map('m', function()
+    local lines = vim.api.nvim_buf_get_lines(0, 0, 20, false)
+    local acct = ''
+    for _, line in ipairs(lines) do
+      if line == '' then break end
+      for pattern, acct_cmd in pairs(M.config.send_accounts) do
+        if line:match('^From:') and line:lower():find(pattern) then
+          acct = acct_cmd
+          break
+        end
+      end
+      if acct ~= '' then break end
+    end
+    vim.cmd('write')
+    local file = vim.fn.expand('%')
+    -- Run muttlook if body has markdown
+    local body_lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local has_markdown = false
+    for _, l in ipairs(body_lines) do
+      if l:match('^#') or l:match('^%*%*') or l:match('^|') or l:match('^%- %[') then
+        has_markdown = true
+        break
+      end
+    end
+    if has_markdown then
+      vim.fn.system('cat ' .. vim.fn.shellescape(file) .. ' | muttlook --action draft')
+    end
+    vim.cmd('terminal neomutt ' .. acct .. ' -H ' .. vim.fn.shellescape(file))
+  end, ' Send mail')
+
+  -- === Quote ===
+  map('q', function()
+    local start_line = vim.fn.line("'<") or vim.fn.line('.')
+    local end_line = vim.fn.line("'>") or vim.fn.line('.')
+    local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+    for i, l in ipairs(lines) do
+      lines[i] = '> ' .. l
+    end
+    vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, false, lines)
+  end, ' Quote')
+
+  -- Also map quote in visual mode
+  vim.keymap.set('v', M.config.prefix .. 'q', function()
+    local start_line = vim.fn.line("'<")
+    local end_line = vim.fn.line("'>")
+    local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+    for i, l in ipairs(lines) do
+      lines[i] = '> ' .. l
+    end
+    vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, false, lines)
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n', false)
+  end, { buffer = true, desc = ' Quote' })
+
+  -- === Sync contacts ===
+  map('a', function()
+    vim.notify('Syncing contacts...', vim.log.levels.INFO)
+    vim.fn.system({ 'khard', 'sync' })
+    vim.notify('Contacts synced', vim.log.levels.INFO)
+  end, ' Sync contacts')
+
+  -- === Image paste (for muttlook CID) ===
+  vim.keymap.set('n', p .. 'i', function()
+    local tmpdir = vim.fn.expand('$HOME/.cache/muttlook')
+    vim.fn.mkdir(tmpdir, 'p')
+    local fname = 'paste_' .. os.date('%Y%m%d%H%M%S') .. '.png'
+    local fpath = tmpdir .. '/' .. fname
+    vim.fn.system({ 'pngpaste', fpath })
+    if vim.v.shell_error == 0 then
+      local pos = vim.api.nvim_win_get_cursor(0)
+      vim.api.nvim_buf_set_lines(0, pos[1], pos[1], false, { '![' .. fname .. '](' .. fpath .. ')' })
+    else
+      vim.notify('No image in clipboard', vim.log.levels.WARN)
+    end
+  end, { buffer = true, desc = ' Paste image' })
+
+  -- === Treesitter + spell ===
+  vim.treesitter.language.register('markdown', 'mail')
+  pcall(vim.treesitter.start, 0, 'markdown')
+  local ok_ls, ls = pcall(require, 'luasnip')
+  if ok_ls then ls.filetype_extend('mail', { 'markdown' }) end
+  vim.opt_local.spell = true
+  vim.opt_local.spelllang = table.concat(M.config.spell_langs, ',')
+  vim.opt_local.wrap = true
+  vim.opt_local.linebreak = true
 
   -- Attachment awareness: warn on BufWritePre
   vim.api.nvim_create_autocmd('BufWritePre', {
