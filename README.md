@@ -3,6 +3,7 @@
 <img src="res/banner.svg" width="400">
 
 [![Tests](https://github.com/monkeyxite/nvim-mail/actions/workflows/test.yml/badge.svg)](https://github.com/monkeyxite/nvim-mail/actions)
+![Tests](https://img.shields.io/badge/tests-55%20passing-brightgreen?style=flat-square)
 [![Neovim](https://img.shields.io/badge/requires-neovim%200.10%2B-57A143?style=flat-square&logo=neovim&logoColor=white)](https://neovim.io)
 [![Lua](https://img.shields.io/badge/Lua-5.1%2B-2C2D72?style=flat-square&logo=lua&logoColor=white)](https://www.lua.org)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
