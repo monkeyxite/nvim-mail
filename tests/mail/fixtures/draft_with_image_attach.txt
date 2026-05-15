@@ -1,0 +1,12 @@
+From: Jonny Hou <jonny.hou@ericsson.com>
+To: someone@example.com
+Subject: Screenshots
+
+Hi,
+
+Please see the attached screenshot.
+
+![screenshot](~/.cache/muttlook/paste_20260515.png)
+
+Best regards,
+Jonny

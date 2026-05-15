@@ -1,0 +1,12 @@
+From: Jonny Hou <jonny.hou@ericsson.com>
+To: someone@example.com
+Subject: Report
+
+Hi,
+
+Please find attached the Q2 report.
+
+<#part filename="report.pdf">
+
+Best regards,
+Jonny

@@ -1,0 +1,12 @@
+From: Jonny Hou <jonny.hou@ericsson.com>
+To: someone@example.com
+Subject: Re: Project update
+
+Hi,
+
+Thanks for the update.
+
+Best regards,
+Jonny
+
+[//]: # (muttlook-reply-to:<abc123@mail.ericsson.com>)
