@@ -32,7 +32,7 @@ local function preview_event(event)
   lines[#lines + 1] = '# ' .. (event.title or '')
   local s = (event.sctime or ''):sub(12, 16)
   local t = (event.ectime or ''):sub(12, 16)
-  if s ~= '' then lines[#lines + 1] = '**󰔛 ' .. s .. ' – ' .. t .. '**' end
+  if s ~= '' then lines[#lines + 1] = '**󰔛 ' .. s .. ' - ' .. t .. '**' end
   if event.location and event.location ~= '' then
     lines[#lines + 1] = '**󰍎 ' .. event.location .. '**'
   end
@@ -95,24 +95,37 @@ function M.calendar(opts)
   local actions = require('telescope.actions')
   local action_state = require('telescope.actions.state')
   local previewers = require('telescope.previewers')
+  local conf = require('telescope.config').values
 
-  local date_arg = opts.date or 'today'
-  local events = get_events(date_arg)
+  -- Parse date from prompt: today, tomorrow, +N, -N, YYYY-MM-DD
+  -- Otherwise fuzzy-filter current day's events
+  local function parse_date(input)
+    if not input or input == '' then return 'today' end
+    if input:match('^today') then return 'today' end
+    if input:match('^tomorrow') then return 'tomorrow' end
+    if input:match('^%+%d') then return input:match('^(%+%d+)') end
+    if input:match('^%-?%d%d%d%d%-') then return input:match('^(%-?%d%d%d%d%-%d%d%-%d%d)') end
+    if input:match('^%-%d') then return input:match('^(%-?%d+)') end
+    return nil -- not a date, use as filter
+  end
 
-  -- Deduplicate by title+time
-  local seen, unique = {}, {}
-  for _, e in ipairs(events) do
-    local key = (e.title or '') .. (e.sctime or '')
-    if not seen[key] then
-      seen[key] = true
-      unique[#unique + 1] = e
+  local current_date = opts.date or 'today'
+  local events = get_events(current_date)
+
+  -- Deduplicate
+  local function dedup(evts)
+    local seen, unique = {}, {}
+    for _, e in ipairs(evts) do
+      local key = (e.title or '') .. (e.sctime or '')
+      if not seen[key] then seen[key] = true; unique[#unique + 1] = e end
     end
+    return unique
   end
 
   pickers.new(opts, {
-    prompt_title = '  Calendar (' .. date_arg .. ')',
+    prompt_title = '  Calendar (' .. current_date .. ') — type date to switch day',
     finder = finders.new_table({
-      results = unique,
+      results = dedup(events),
       entry_maker = function(event)
         return {
           value = event,
@@ -130,8 +143,17 @@ function M.calendar(opts)
         vim.bo[self.state.bufnr].filetype = 'markdown'
       end,
     }),
-    sorter = require('telescope.sorters').empty(),
+    sorter = conf.generic_sorter(opts),
     attach_mappings = function(prompt_bufnr, map)
+      -- Ctrl+d: reload with date from prompt
+      map({ 'i', 'n' }, '<C-s>', function()
+        local prompt = action_state.get_current_line()
+        local new_date = parse_date(prompt)
+        if new_date then
+          actions.close(prompt_bufnr)
+          M.calendar({ date = new_date })
+        end
+      end)
       -- Enter: start MoM
       actions.select_default:replace(function()
         actions.close(prompt_bufnr)
