@@ -179,10 +179,12 @@ end
 M.search = search
 
 local calendar = require('nvim-mail.calendar')
+local contacts_picker = require('nvim-mail.contacts_picker')
 
 return require('telescope').register_extension({
   exports = {
-    search = search,
+    search   = search,
     calendar = calendar.calendar,
+    contacts = contacts_picker.contacts,
   },
 })

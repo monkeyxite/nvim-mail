@@ -226,6 +226,13 @@ function M.setup(opts)
     end
   end, ' Resolve contacts')
 
+  -- === Contact picker: ,mK search khard+notmuch, insert or create ===
+  map('K', function()
+    require('telescope').extensions.nvim_mail.contacts()
+  end, ' Contact picker')
+
+  -- === Sync contacts ===
+  map('a', function()
     vim.notify('Syncing contacts...', vim.log.levels.INFO)
     vim.fn.system({ 'khard', 'sync' })
     vim.notify('Contacts synced', vim.log.levels.INFO)
