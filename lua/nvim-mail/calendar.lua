@@ -250,5 +250,19 @@ end
 -- Expose internals for testing
 M._preview_event = preview_event
 M._start_mom = start_mom
+M._clean_notes = function(s)
+  return (s or '')
+    :gsub('<mailto:[^>]+>', '')
+    :gsub('\r\n', '\n'):gsub('\r', '\n')
+    :gsub('\n_{3,}.*', ''):gsub('\nMicrosoft Teams meeting.*', '')
+    :gsub('<https?://[^>]+>', '')
+    :gsub('\n\n\n+', '\n\n')
+    :gsub('^%s+', ''):gsub('%s+$', '')
+end
+M._format_entry = function(event)
+  local s = (event.sctime or ''):sub(12, 16)
+  local t = (event.ectime or ''):sub(12, 16)
+  return string.format('%s-%s  %s', s, t, event.title or '?')
+end
 
 return M
