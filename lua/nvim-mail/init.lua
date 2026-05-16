@@ -193,44 +193,94 @@ function M.setup(opts)
       end)
     end
 
-    for _, t in ipairs(tasks) do
-      local name_results = {}  -- name → email string
-      local name_pending = #t.names
+    -- Strip Ericsson-style suffixes: "Kevin Li K" → "Kevin Li"
+    local function normalize_name(n)
+      return vim.trim(n:gsub('%s+[A-Z][A-Z]?$', ''):gsub('%s+I+$', ''))
+    end
 
-      -- Strip trailing suffixes like "K", "X", "XX", "I", "II", roman numerals
-      local function normalize_name(n)
-        -- Remove trailing single/double uppercase letters or roman numerals
-        return vim.trim(n:gsub('%s+[A-Z][A-Z]?$', ''):gsub('%s+I+$', ''))
-      end
+    -- Extract first email from khard parsable output
+    local function parse_khard(stdout)
+      local line = vim.split(stdout or '', "\n")[1] or ''
+      local email = vim.split(line, "\t")[1] or ''
+      email = vim.trim(email)
+      return email:find('@') and email or nil
+    end
 
-      -- Try khard with name, fallback to normalized, fallback to first+last only
-      local function khard_lookup(name, cb)
-        local function try(query, fallbacks)
-          vim.system({ 'khard', 'email', '--parsable', '--remove-first-line', query },
-            { text = true }, function(result)
-              local first_line = vim.split(result.stdout or '', "\n")[1] or ''
-              local email = vim.split(first_line, "\t")[1] or ''
-              email = vim.trim(email)
-              if email:find('@') then
-                cb(email)
-              elseif #fallbacks > 0 then
-                try(table.remove(fallbacks, 1), fallbacks)
-              else
-                cb(nil)
+    -- Stage 2: notmuch — find email by searching sent/received mail
+    local function notmuch_lookup(name, cb)
+      local norm = normalize_name(name)
+      vim.system(
+        { 'notmuch', 'address', '--format=text', '--deduplicate=address',
+          '(from:*' .. norm .. '* OR to:*' .. norm .. '*)' },
+        { text = true }, function(result)
+          -- Filter lines to those whose display name closely matches
+          local best
+          for _, line in ipairs(vim.split(result.stdout or '', "\n")) do
+            local dname, email = line:match('^(.-)%s*<([^>]+)>')
+            if email and email:find('@') and dname then
+              -- Accept if normalized display name contains all words of norm
+              local match = true
+              for _, word in ipairs(vim.split(norm:lower(), ' ', { trimempty = true })) do
+                if not dname:lower():find(word, 1, true) then match = false; break end
               end
-            end)
-        end
-        local norm = normalize_name(name)
-        local parts = vim.split(norm, ' ', { trimempty = true })
-        local first_last = #parts >= 2 and (parts[1] .. ' ' .. parts[#parts]) or norm
-        local fallbacks = {}
-        if norm ~= name then fallbacks[#fallbacks+1] = norm end
-        if first_last ~= norm then fallbacks[#fallbacks+1] = first_last end
-        try(name, fallbacks)
-      end
+              if match then best = email; break end
+            end
+          end
+          cb(best)
+        end)
+    end
 
+    -- Stage 3: ldap — authoritative but slow, only on fallback
+    local function ldap_lookup(name, cb)
+      local norm = normalize_name(name)
+      local parts = vim.split(norm, ' ', { trimempty = true })
+      vim.system(
+        { 'ldap_owa_query', parts[1] or norm, parts[2] or '', 'work' },
+        { text = true }, function(result)
+          local line = vim.split(result.stdout or '', "\n")[1] or ''
+          local email = vim.split(line, "\t")[1] or ''
+          email = vim.trim(email)
+          cb(email:find('@') and email or nil)
+        end)
+    end
+
+    -- 3-stage resolver: khard → notmuch → ldap
+    local function resolve_name(name, cb)
+      local norm = normalize_name(name)
+      local parts = vim.split(norm, ' ', { trimempty = true })
+      local first_last = #parts >= 2 and (parts[1] .. ' ' .. parts[#parts]) or norm
+      -- Try khard with up to 3 name variants
+      local khard_queries = { name }
+      if norm ~= name then khard_queries[#khard_queries+1] = norm end
+      if first_last ~= norm then khard_queries[#khard_queries+1] = first_last end
+
+      local function try_khard(i)
+        if i > #khard_queries then
+          -- Stage 2: notmuch
+          notmuch_lookup(name, function(email)
+            if email then cb(email)
+            else
+              -- Stage 3: ldap (slow, last resort)
+              ldap_lookup(name, cb)
+            end
+          end)
+          return
+        end
+        vim.system({ 'khard', 'email', '--parsable', '--remove-first-line', khard_queries[i] },
+          { text = true }, function(result)
+            local email = parse_khard(result.stdout)
+            if email then cb(email)
+            else try_khard(i + 1) end
+          end)
+      end
+      try_khard(1)
+    end
+
+    for _, t in ipairs(tasks) do
+      local name_results = {}
+      local name_pending = #t.names
       for _, name in ipairs(t.names) do
-        khard_lookup(name, function(email)
+        resolve_name(name, function(email)
             if email and email ~= '' then
               name_results[name] = string.format('%s <%s>', name, email)
             else
