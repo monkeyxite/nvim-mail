@@ -10,7 +10,7 @@ local function make_picker(opts, entries, title)
   local action_state = require('telescope.actions.state')
 
   pickers.new(opts, {
-    prompt_title = title,
+    prompt_title = title .. '  C-e:notmuch  C-o:edit  C-n:new',
     finder = finders.new_table({
       results = entries,
       entry_maker = function(r)
@@ -41,6 +41,14 @@ local function make_picker(opts, entries, title)
         if not entry then return end
         vim.fn.setreg('+', entry.value.email or '')
         vim.notify('Copied: ' .. (entry.value.email or ''), vim.log.levels.INFO)
+      end)
+
+      -- C-o: edit contact in khard
+      map({ 'i', 'n' }, '<C-o>', function()
+        actions.close(prompt_bufnr)
+        local entry = action_state.get_selected_entry()
+        if not entry then return end
+        vim.cmd('terminal khard edit ' .. vim.fn.shellescape(entry.value.email))
       end)
 
       -- C-e: expand to notmuch (async, reopens picker with more results)
@@ -130,7 +138,7 @@ local function contacts_picker(opts)
       end
     end
   end
-  make_picker(opts, entries, '  Contacts (' .. #entries .. ')  C-e: expand notmuch')
+  make_picker(opts, entries, '  Contacts (' .. #entries .. ')')
 end
 
 M.contacts = contacts_picker
