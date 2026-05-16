@@ -14,9 +14,8 @@ M.config = {
   prefix = ',m', -- keymap prefix
   -- Account detection for send: pattern → neomutt account source
   send_accounts = {
-    -- ['ericsson'] = '-e "source ~/.config/mutt/accounts/2-work.muttrc"',
-    -- ['monkeyxite'] = '-e "source ~/.config/mutt/accounts/1-monkeyxite@gmail.com.muttrc"',
-    -- ['gmail'] = '-e "source ~/.config/mutt/accounts/1-monkeyxite@gmail.com.muttrc"',
+    -- ['work'] = '-e "source ~/.config/mutt/accounts/work.muttrc"',
+    -- ['personal'] = '-e "source ~/.config/mutt/accounts/personal.muttrc"',
   },
 }
 
@@ -261,16 +260,18 @@ function M.setup(opts)
         if email then save_to_khard(parts[1], parts[#parts], email) end
         cb(email)
       end
+      local work_domain = require('nvim-mail.contacts').config.work_domain or 'example.com'
+      local domain_pat = work_domain:gsub('%.', '%%.')
       for _, cand in ipairs(candidates) do
         for _, cmd in ipairs({
-          { 'notmuch', 'address', '--deduplicate=address', 'from:'..cand..'@ericsson' },
-          { 'notmuch', 'address', '--deduplicate=address', 'to:'..cand..'@ericsson' },
+          { 'notmuch', 'address', '--deduplicate=address', 'from:'..cand..'@'..work_domain },
+          { 'notmuch', 'address', '--deduplicate=address', 'to:'..cand..'@'..work_domain },
         }) do
           vim.system(cmd, { text = true }, function(result)
             tried = tried + 1
             if found then return end
             for _, line in ipairs(vim.split(result.stdout or '', "\n")) do
-              local dname, email = line:match('^(.-)%s*<([^>]+@ericsson%.com)>')
+              local dname, email = line:match('^(.-)%s*<([^>]+@'..domain_pat..')>')
               if email and dname then
                 local dtr = tr(dname:lower())
                 local dwords = vim.split(dtr, '%s+')

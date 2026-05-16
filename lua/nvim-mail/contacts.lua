@@ -20,7 +20,9 @@ M.config = {
   cmd = 'khard',
   args = { 'email', '-p', '--remove-first-line' },
   -- From: → account mapping
-  from_map = {},  -- e.g. { ['ericsson'] = 'work', ['gmail'] = 'personal' }
+  from_map = {},  -- e.g. { ['work%.com'] = 'work', ['gmail%.com'] = 'personal' }
+  -- Work email domain for notmuch Ericsson-style pattern matching
+  work_domain = 'example.com',
   -- notmuch address search (searches all indexed mail)
   notmuch = true,
 }
