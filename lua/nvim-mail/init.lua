@@ -285,21 +285,7 @@ function M.setup(opts)
       end
     end
 
-    -- Stage 3: ldap — authoritative, slow, last resort
-    local function ldap_lookup(name, cb)
-      local norm = normalize_name(name)
-      local parts = vim.split(norm, ' ', { trimempty = true })
-      vim.system(
-        { 'ldap_owa_query', parts[1] or norm, parts[2] or '', 'work' },
-        { text = true }, function(result)
-          local line = vim.split(result.stdout or '', "\n")[1] or ''
-          local email = vim.split(line, "\t")[1] or ''
-          email = vim.trim(email)
-          cb(email:find('@') and email or nil)
-        end)
-    end
-
-    -- 3-stage resolver: khard → notmuch (Ericsson pattern) → ldap
+    -- 2-stage resolver: khard → notmuch → ldap (with warning)
     local function resolve_name(name, cb)
       local norm = normalize_name(name)
       local parts = vim.split(norm, ' ', { trimempty = true })
@@ -311,8 +297,20 @@ function M.setup(opts)
       local function try_khard(i)
         if i > #khard_queries then
           notmuch_lookup(name, function(email)
-            if email then cb(email)
-            else ldap_lookup(name, cb) end
+            if email then cb(email); return end
+            -- Last resort: ldap (slow, DavMail)
+            vim.schedule(function()
+              vim.notify('⏳ LDAP lookup for: ' .. name, vim.log.levels.WARN)
+            end)
+            local norm2 = normalize_name(name)
+            local p = vim.split(norm2, ' ', { trimempty = true })
+            vim.system(
+              { 'ldap_owa_query', p[1] or norm2, p[2] or '', 'work' },
+              { text = true }, function(result)
+                local line = vim.split(result.stdout or '', "\n")[1] or ''
+                local email2 = vim.trim(vim.split(line, "\t")[1] or '')
+                cb(email2:find('@') and email2 or nil)
+              end)
           end)
           return
         end
