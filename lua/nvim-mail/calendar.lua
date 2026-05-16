@@ -52,10 +52,10 @@ local function preview_event(event)
   local s = (event.sctime or ''):sub(12, 16)
   local t = (event.ectime or ''):sub(12, 16)
   if s ~= '' then lines[#lines + 1] = '**󰔛 ' .. s .. ' - ' .. t .. '**' end
-  if event.location and event.location ~= '' then
+  if event.location and type(event.location) == 'string' and event.location ~= '' then
     lines[#lines + 1] = '**󰍎 ' .. event.location .. '**'
   end
-  if event.conference_url_detected and event.conference_url_detected ~= '' then
+  if event.conference_url_detected and type(event.conference_url_detected) == 'string' and event.conference_url_detected ~= '' then
     lines[#lines + 1] = '**󰌷 ' .. event.conference_url_detected .. '**'
   end
   lines[#lines + 1] = ''
@@ -63,7 +63,7 @@ local function preview_event(event)
   for i, a in ipairs(event.attendees or {}) do
     lines[#lines + 1] = '- ' .. (i == 1 and '󰀄 ' or '') .. a
   end
-  if event.notes and event.notes ~= '' then
+  if event.notes and type(event.notes) == 'string' and event.notes ~= '' then
     lines[#lines + 1] = ''
     lines[#lines + 1] = '## Notes'
     for _, l in ipairs(vim.split(event.notes, '\n')) do
