@@ -222,4 +222,8 @@ function M.calendar(opts)
   }):find()
 end
 
+-- Expose internals for testing
+M._preview_event = preview_event
+M._start_mom = start_mom
+
 return M
