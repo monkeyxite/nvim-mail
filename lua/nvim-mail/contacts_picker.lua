@@ -11,25 +11,35 @@ local function contacts_picker(opts)
   local action_state = require('telescope.actions.state')
   local previewers = require('telescope.previewers')
 
+  -- Load all addresses once, fuzzy filter client-side
+  local result = vim.system(
+    { 'notmuch', 'address', '--format=text', '--deduplicate=address', '*' },
+    { text = true }
+  ):wait(10000)
+  local entries = {}
+  local seen = {}
+  for _, line in ipairs(vim.split(result.stdout or '', '\n')) do
+    if line ~= '' then
+      local name, email = line:match('^(.-)%s*<([^>]+)>')
+      if not email then email = vim.trim(line); name = '' end
+      email = vim.trim(email or '')
+      if email:find('@') and not seen[email] then
+        seen[email] = true
+        entries[#entries + 1] = { email = email, name = vim.trim(name or '') }
+      end
+    end
+  end
+
   pickers.new(opts, {
-    prompt_title = '  Contacts',
-    finder = finders.new_async_job({
-      command_generator = function(prompt)
-        if not prompt or #prompt < 2 then return nil end
-        return { 'notmuch', 'address', '--format=text', '--deduplicate=address',
-                 '(from:*' .. prompt .. '* OR to:*' .. prompt .. '*)' }
-      end,
-      entry_maker = function(line)
-        if not line or line == '' then return nil end
-        local name, email = line:match('^(.-)%s*<([^>]+)>')
-        if not email then email = vim.trim(line); name = '' end
-        if not email or not email:find('@') then return nil end
-        name = vim.trim(name or '')
-        local display = name ~= '' and string.format('%s <%s>', name, email) or email
+    prompt_title = '  Contacts (' .. #entries .. ')',
+    finder = finders.new_table({
+      results = entries,
+      entry_maker = function(r)
+        local display = r.name ~= '' and string.format('%s <%s>', r.name, r.email) or r.email
         return {
-          value   = { email = email, name = name, type = 'notmuch' },
+          value   = { email = r.email, name = r.name, type = 'notmuch' },
           display = display,
-          ordinal = name .. ' ' .. email,
+          ordinal = r.name .. ' ' .. r.email,
         }
       end,
     }),
