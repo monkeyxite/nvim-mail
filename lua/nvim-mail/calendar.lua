@@ -12,12 +12,31 @@ local function get_events(date_arg)
     cmd = 'events'; extra = '--from=' .. date_arg .. ' --to=' .. date_arg
   else cmd = 'eventsToday'; extra = '' end
 
+  -- Cache for 8 hours (same as kms-select)
+  local cache_key = cmd .. extra
+  local cache_file = '/tmp/nvim-mail-cal-' .. vim.fn.sha256(cache_key):sub(1, 8) .. '.json'
+  local stat = vim.loop.fs_stat(cache_file)
+  if stat and (os.time() - stat.mtime.sec) < 28800 then
+    local f = io.open(cache_file)
+    if f then
+      local content = f:read('*a')
+      f:close()
+      local ok, data = pcall(vim.json.decode, content)
+      if ok and data then return data end
+    end
+  end
+
   local icalpal_cmd = 'icalpal ' .. cmd .. ' ' .. extra ..
     ' --iep "title,datetime,attendees,notes,url,conference_url_detected,location,sctime,ectime" --sort "datetime" --nc --ea --nb --npn -o json 2>/dev/null'
   local output = vim.fn.system({ 'sh', '-c', icalpal_cmd })
   if vim.v.shell_error ~= 0 then return {} end
   local ok, data = pcall(vim.json.decode, output)
   if not ok or not data then return {} end
+
+  -- Write cache
+  local f = io.open(cache_file, 'w')
+  if f then f:write(output); f:close() end
+
   return data
 end
 
