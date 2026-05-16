@@ -190,22 +190,71 @@ function M.calendar(opts)
       end)
 
       -- Ctrl+r: reply/email attendees
+      -- C-r: compose MoM mail with attendee email lookup via khard (async, parallel)
       map({ 'i', 'n' }, '<C-r>', function()
         actions.close(prompt_bufnr)
         local entry = action_state.get_selected_entry()
-        if entry and entry.value then
-          local attendees = entry.value.attendees or {}
+        if not entry or not entry.value then return end
+        local event = entry.value
+        local attendees = event.attendees or {}
+        if #attendees == 0 then return end
+
+        -- Clean notes: strip mailto, Teams boilerplate, normalize newlines
+        local function clean_notes(s)
+          return (s or '')
+            :gsub('<mailto:[^>]+>', '')
+            :gsub('\r\n', '\n'):gsub('\r', '\n')
+            :gsub('\n_{3,}.*', ''):gsub('\nMicrosoft Teams meeting.*', '')
+            :gsub('<https?://[^>]+>', '')
+            :gsub('\n\n\n+', '\n\n')
+            :gsub('^%s+', ''):gsub('%s+$', '')
+        end
+
+        local function open_buffer(emails)
+          local date_str = os.date('%Y-%m-%d')
+          local s = (event.sctime or ''):sub(12, 16)
+          local t = (event.ectime or ''):sub(12, 16)
+          local notes = clean_notes(event.notes)
           local lines = {
-            'To: ' .. table.concat(attendees, ', '),
-            'Subject: Re: ' .. (entry.value.title or ''),
+            'To: ' .. table.concat(emails, ', '),
+            'Subject: MoM: ' .. (event.title or ''),
             '',
+            '## ' .. (event.title or '') .. ' — ' .. date_str,
+            '',
+            '**Date**: ' .. date_str .. '  ' .. s .. ' - ' .. t,
+            '**Attendees**: ' .. table.concat(attendees, ', '),
             '',
           }
+          if notes ~= '' then
+            vim.list_extend(lines, { '## Agenda', '' })
+            vim.list_extend(lines, vim.split(notes, '\n'))
+            lines[#lines + 1] = ''
+          end
+          vim.list_extend(lines, { '## Notes', '', '', '## Action Points', '', '- [ ] ' })
           vim.cmd('enew')
           vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
           vim.bo.filetype = 'mail'
-          vim.api.nvim_win_set_cursor(0, { 4, 0 })
+          vim.api.nvim_win_set_cursor(0, { #lines - 3, 0 })
           vim.cmd('startinsert')
+        end
+
+        -- Parallel khard lookups
+        local emails = {}
+        local pending = #attendees
+        for i, name in ipairs(attendees) do
+          emails[i] = name  -- default fallback
+          vim.system({ 'khard', 'email', '--parsable', name }, { text = true }, function(result)
+            if result.code == 0 then
+              local email = (result.stdout or ''):match('^([^\t\n]+)')
+              if email and email ~= '' then
+                emails[i] = string.format('%s <%s>', name, email)
+              end
+            end
+            pending = pending - 1
+            if pending == 0 then
+              vim.schedule(function() open_buffer(emails) end)
+            end
+          end)
         end
       end)
 
