@@ -134,7 +134,7 @@ function M.calendar(opts)
   end
 
   pickers.new(opts, {
-    prompt_title = '  Calendar (' .. current_date .. ') — type date to switch day',
+    prompt_title = '  Calendar (' .. current_date .. ')  C-s:date  C-o:url  C-r:MoM mail',
     finder = finders.new_table({
       results = dedup(events),
       entry_maker = function(event)
@@ -219,7 +219,7 @@ function M.calendar(opts)
             'To: ' .. table.concat(emails, ', '),
             'Subject: MoM: ' .. (event.title or ''),
             '',
-            '## ' .. (event.title or '') .. ' — ' .. date_str,
+            '## ' .. (event.title or '') .. ' - ' .. date_str,
             '',
             '**Date**: ' .. date_str .. '  ' .. s .. ' - ' .. t,
             '**Attendees**: ' .. table.concat(attendees, ', '),

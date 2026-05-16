@@ -196,12 +196,42 @@ function M.setup(opts)
     for _, t in ipairs(tasks) do
       local name_results = {}  -- name → email string
       local name_pending = #t.names
+
+      -- Strip trailing suffixes like "K", "X", "XX", "I", "II", roman numerals
+      local function normalize_name(n)
+        -- Remove trailing single/double uppercase letters or roman numerals
+        return vim.trim(n:gsub('%s+[A-Z][A-Z]?$', ''):gsub('%s+I+$', ''))
+      end
+
+      -- Try khard with name, fallback to normalized, fallback to first+last only
+      local function khard_lookup(name, cb)
+        local function try(query, fallbacks)
+          vim.system({ 'khard', 'email', '--parsable', '--remove-first-line', query },
+            { text = true }, function(result)
+              local first_line = vim.split(result.stdout or '', '
+')[1] or ''
+              local email = vim.split(first_line, '	')[1] or ''
+              email = vim.trim(email)
+              if email:find('@') then
+                cb(email)
+              elseif #fallbacks > 0 then
+                try(table.remove(fallbacks, 1), fallbacks)
+              else
+                cb(nil)
+              end
+            end)
+        end
+        local norm = normalize_name(name)
+        local parts = vim.split(norm, ' ', { trimempty = true })
+        local first_last = #parts >= 2 and (parts[1] .. ' ' .. parts[#parts]) or norm
+        local fallbacks = {}
+        if norm ~= name then fallbacks[#fallbacks+1] = norm end
+        if first_last ~= norm then fallbacks[#fallbacks+1] = first_last end
+        try(name, fallbacks)
+      end
+
       for _, name in ipairs(t.names) do
-        vim.system(
-          { 'khard', 'email', '--parsable', '--remove-first-line', name },
-          { text = true },
-          function(result)
-            local email = (result.stdout or ''):match('^([^\t\n]+)')
+        khard_lookup(name, function(email)
             if email and email ~= '' then
               name_results[name] = string.format('%s <%s>', name, email)
             else
@@ -220,8 +250,7 @@ function M.setup(opts)
               resolved_lines[t.idx] = prefix .. table.concat(new_entries, ', ')
               finish()
             end
-          end
-        )
+          end)
       end
     end
   end, ' Resolve contacts')
