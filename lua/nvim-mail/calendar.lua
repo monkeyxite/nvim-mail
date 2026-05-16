@@ -27,7 +27,7 @@ local function get_events(date_arg)
   end
 
   local icalpal_cmd = 'icalpal ' .. cmd .. ' ' .. extra ..
-    ' --iep "title,datetime,attendees,notes,url,conference_url_detected,location,sctime,ectime" --sort "datetime" --nc --ea --nb --npn -o json 2>/dev/null'
+    ' --iep "title,datetime,attendees,notes,url,conference_url_detected,location,sctime,ectime" --sort "datetime" --nc -o json 2>/dev/null'
   local output = vim.fn.system({ 'sh', '-c', icalpal_cmd })
   if vim.v.shell_error ~= 0 then return {} end
   local ok, data = pcall(vim.json.decode, output)
