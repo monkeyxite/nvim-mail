@@ -36,6 +36,9 @@ Pure Lua replacement for [vim-mail](https://github.com/dbeniamine/vim-mail). Des
 | 🔄 **Switch From** | Select sender from configured address list |
 | 🗑️ **Kill quoted sig** | Remove quoted signatures from replies |
 | 🌐 **Spell cycling** | Cycle through configured spell languages |
+| 📅 **Calendar picker** | Telescope calendar via kcal (EventKit, ~85ms), MoM mail compose |
+| 🔍 **Contact picker** | Telescope khard+notmuch search, insert/edit/create contacts |
+| ✉️ **Smart contact resolve** | `,mC` resolves display names to emails: khard→notmuch→ldap, auto-saves |
 
 ## 📦 Dependencies
 
@@ -59,7 +62,8 @@ graph LR
 | [notmuch](https://notmuchmail.org) | Thread context, Contacts, Telescope | Yes |
 | [nm-livesearch](https://github.com/dagle/nm-livesearch) | Telescope async search | Yes (for telescope) |
 | [nm-html-extract](link) | Telescope preview, Thread context | Yes |
-| [icalpal](https://github.com/ajrosen/icalPal) | Calendar picker | Yes (for calendar) |
+| [icalpal](https://github.com/ajrosen/icalPal) | Calendar picker | No (replaced by kcal) |
+| [kcal](https://github.com/monkeyxite/kcal) | Calendar picker (fast, native EventKit) | Yes (for calendar) |
 | [khard](https://github.com/lucc/khard) | Contact completion | Yes |
 | [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) | Mail search | Optional |
 | [blink.cmp](https://github.com/Saghen/blink.cmp) | Completion framework | Optional |
@@ -133,6 +137,8 @@ All under configurable prefix (default `,m`):
 | `,ma` | Sync contacts (khard) |
 | `,mT` | Thread context (terminal split) |
 | `,mp` | Preview as HTML (muttlook) |
+| `,mC` | Resolve display names → emails in To/Cc/Bcc (khard→notmuch→ldap) |
+| `,mK` | Contact picker (telescope) |
 
 ### Automatic
 
@@ -210,6 +216,7 @@ Or bind:
 ```lua
 vim.keymap.set('n', '<leader>sm', require('telescope').extensions.nvim_mail.search, { desc = '[S]earch [M]ail' })
 vim.keymap.set('n', '<leader>sc', require('telescope').extensions.nvim_mail.calendar, { desc = '[S]earch [C]alendar' })
+vim.keymap.set('n', '<leader>sK', require('telescope').extensions.nvim_mail.contacts, { desc = '[S]earch [K]ontacts' })
 ```
 
 ### Mail picker keymaps
@@ -231,11 +238,37 @@ vim.keymap.set('n', '<leader>sc', require('telescope').extensions.nvim_mail.cale
 |-----|--------|
 | `Enter` | Start MoM from template |
 | `Ctrl+o` | Open conference URL |
-| `Ctrl+r` | Email attendees (mail draft) |
+| `Ctrl+r` | Compose MoM mail — instant buffer with display names, cleaned notes, agenda |
 | `Ctrl+s` | Switch date (type date in prompt first) |
 
 Calendar supports: `today`, `tomorrow`, `+N`, `-N`, `YYYY-MM-DD` in prompt.
-Results cached 8 hours (icalpal is slow ~1.7s).
+Powered by [kcal](https://github.com/monkeyxite/kcal) — native EventKit, ~85ms vs ~3s for icalpal.
+
+### Contacts picker (`<leader>sK` / `,mK`)
+
+```vim
+:Telescope nvim_mail contacts
+```
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Insert `Name <email>` at cursor |
+| `Ctrl+e` | Expand with notmuch addresses (async) |
+| `Ctrl+o` | Edit contact in khard |
+| `Ctrl+n` | Create new khard contact from entry |
+| `Ctrl+y` | Yank email to clipboard |
+
+Loads khard contacts instantly (~300ms). `Ctrl+e` merges notmuch addresses on demand.
+
+### Contact resolution (`,mC`)
+
+Resolves display names in `To:`/`Cc:`/`Bcc:` to emails using a 3-stage pipeline:
+
+1. **khard** — local vcard store, 3 name variants (original, suffix-stripped, first+last)
+2. **notmuch** — Ericsson email pattern (`first.last@ericsson.com`) with transliteration (ä→a, ö→o) and name validation
+3. **ldap** — DavMail LDAP as last resort, shows `⏳ LDAP lookup for: <name>` warning
+
+Successful notmuch and ldap results are auto-saved to khard for instant lookup next time.
 
 Features:
 - Live results as you type (nm-livesearch async streaming)
@@ -256,14 +289,16 @@ nvim --headless --clean -u tests/minimal_init.lua \
 
 ```
 lua/nvim-mail/
-├── init.lua        — setup, keymaps, autocmds
-├── attachment.lua  — attachment mention detection
-├── marker.lua      — muttlook marker extmarks
-├── thread.lua      — nm-html-extract thread in terminal split
-├── contacts.lua    — blink-cmp provider for khard
-├── preview.lua     — muttlook draft preview
-├── snippets.lua    — context detection
-└── navigate.lua    — header/body/signature navigation
+├── init.lua           — setup, keymaps, autocmds, ,mC resolver
+├── attachment.lua     — attachment mention detection
+├── marker.lua         — muttlook marker extmarks
+├── thread.lua         — nm-html-extract thread in terminal split
+├── contacts.lua       — blink-cmp provider for khard
+├── contacts_picker.lua — telescope contact picker (khard+notmuch)
+├── calendar.lua       — telescope calendar picker (kcal)
+├── preview.lua        — muttlook draft preview
+├── snippets.lua       — context detection
+└── navigate.lua       — header/body/signature navigation
 ```
 
 ## 🔄 Migrating from vim-mail
