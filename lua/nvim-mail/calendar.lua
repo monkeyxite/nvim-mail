@@ -2,42 +2,32 @@
 -- Usage: require('telescope').extensions.nvim_mail.calendar()
 local M = {}
 
-local function get_events(date_arg)
+--- Build the kcal command args for a date string.
+local function kcal_args(date_arg)
   date_arg = date_arg or 'today'
-  local cmd, extra
-  if date_arg == 'today' then cmd = 'eventsToday'; extra = ''
-  elseif date_arg == 'tomorrow' then cmd = 'eventsToday+1'; extra = ''
-  elseif date_arg:match('^%+') then cmd = 'eventsToday' .. date_arg; extra = ''
+  if date_arg == 'today' then return { 'kcal', 'eventsToday' }
+  elseif date_arg == 'tomorrow' then return { 'kcal', 'eventsToday+1' }
+  elseif date_arg:match('^%+%d') then return { 'kcal', 'eventsToday' .. date_arg }
   elseif date_arg:match('^%-') or date_arg:match('^%d%d%d%d%-') then
-    cmd = 'events'; extra = '--from=' .. date_arg .. ' --to=' .. date_arg
-  else cmd = 'eventsToday'; extra = '' end
-
-  -- Cache for 8 hours (same as kms-select)
-  local cache_key = cmd .. extra
-  local cache_file = '/tmp/nvim-mail-cal-' .. vim.fn.sha256(cache_key):sub(1, 8) .. '.json'
-  local stat = vim.loop.fs_stat(cache_file)
-  if stat and (os.time() - stat.mtime.sec) < 28800 then
-    local f = io.open(cache_file)
-    if f then
-      local content = f:read('*a')
-      f:close()
-      local ok, data = pcall(vim.json.decode, content)
-      if ok and data then return data end
-    end
+    return { 'kcal', 'events', '--from=' .. date_arg, '--to=' .. date_arg }
   end
+  return { 'kcal', 'eventsToday' }
+end
 
-  local icalpal_cmd = 'icalpal ' .. cmd .. ' ' .. extra ..
-    ' --iep "title,datetime,attendees,notes,url,conference_url_detected,location,sctime,ectime" --sort "datetime" --nc -o json 2>/dev/null'
-  local output = vim.fn.system({ 'sh', '-c', icalpal_cmd })
-  if vim.v.shell_error ~= 0 then return {} end
-  local ok, data = pcall(vim.json.decode, output)
-  if not ok or not data then return {} end
+--- Fetch events synchronously (used for initial open).
+local function get_events(date_arg)
+  local result = vim.system(kcal_args(date_arg), { text = true }):wait()
+  if result.code ~= 0 then return {} end
+  local ok, data = pcall(vim.json.decode, result.stdout)
+  return (ok and data) or {}
+end
 
-  -- Write cache
-  local f = io.open(cache_file, 'w')
-  if f then f:write(output); f:close() end
-
-  return data
+--- Fetch events asynchronously, call cb(events) on completion.
+local function get_events_async(date_arg, cb)
+  vim.system(kcal_args(date_arg), { text = true }, function(result)
+    local ok, data = pcall(vim.json.decode, result.stdout or '')
+    vim.schedule(function() cb((ok and data) or {}) end)
+  end)
 end
 
 local function format_entry(event)
@@ -131,7 +121,7 @@ function M.calendar(opts)
   end
 
   local current_date = opts.date or 'today'
-  local events = get_events(current_date)
+  local events = opts.events or get_events(current_date)
 
   -- Deduplicate
   local function dedup(evts)
@@ -166,13 +156,15 @@ function M.calendar(opts)
     }),
     sorter = conf.generic_sorter(opts),
     attach_mappings = function(prompt_bufnr, map)
-      -- Ctrl+d: reload with date from prompt
+      -- Ctrl+s: switch to date from prompt (async fetch, no UI block)
       map({ 'i', 'n' }, '<C-s>', function()
         local prompt = action_state.get_current_line()
         local new_date = parse_date(prompt)
         if new_date then
           actions.close(prompt_bufnr)
-          M.calendar({ date = new_date })
+          get_events_async(new_date, function(new_events)
+            M.calendar({ date = new_date, events = new_events })
+          end)
         end
       end)
       -- Enter: start MoM
