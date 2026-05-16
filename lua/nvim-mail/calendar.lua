@@ -243,7 +243,7 @@ function M.calendar(opts)
         local pending = #attendees
         for i, name in ipairs(attendees) do
           emails[i] = name  -- default fallback
-          vim.system({ 'khard', 'email', '--parsable', name }, { text = true }, function(result)
+          vim.system({ 'khard', 'email', '--parsable', '--remove-first-line', name }, { text = true }, function(result)
             if result.code == 0 then
               local email = (result.stdout or ''):match('^([^\t\n]+)')
               if email and email ~= '' then
