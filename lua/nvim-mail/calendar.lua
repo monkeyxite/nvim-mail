@@ -66,7 +66,9 @@ local function preview_event(event)
   if event.notes and event.notes ~= '' then
     lines[#lines + 1] = ''
     lines[#lines + 1] = '## Notes'
-    lines[#lines + 1] = event.notes
+    for _, l in ipairs(vim.split(event.notes, '\n')) do
+      lines[#lines + 1] = l
+    end
   end
   return lines
 end
