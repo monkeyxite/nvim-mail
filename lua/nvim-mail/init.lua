@@ -309,6 +309,11 @@ function M.setup(opts)
               { text = true }, function(result)
                 local line = vim.split(result.stdout or '', "\n")[1] or ''
                 local email2 = vim.trim(vim.split(line, "\t")[1] or '')
+                if email2:find('@') then
+                  -- Auto-save ldap result to khard
+                  local p2 = vim.split(normalize_name(name), ' ', { trimempty = true })
+                  save_to_khard(p2[1] or name, p2[#p2] or '', email2)
+                end
                 cb(email2:find('@') and email2 or nil)
               end)
           end)
