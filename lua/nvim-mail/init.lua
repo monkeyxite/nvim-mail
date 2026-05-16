@@ -208,9 +208,8 @@ function M.setup(opts)
         local function try(query, fallbacks)
           vim.system({ 'khard', 'email', '--parsable', '--remove-first-line', query },
             { text = true }, function(result)
-              local first_line = vim.split(result.stdout or '', '
-')[1] or ''
-              local email = vim.split(first_line, '	')[1] or ''
+              local first_line = vim.split(result.stdout or '', "\n")[1] or ''
+              local email = vim.split(first_line, "\t")[1] or ''
               email = vim.trim(email)
               if email:find('@') then
                 cb(email)
