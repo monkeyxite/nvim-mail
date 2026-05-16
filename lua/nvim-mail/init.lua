@@ -129,8 +129,103 @@ function M.setup(opts)
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n', false)
   end, { buffer = true, desc = ' Quote' })
 
-  -- === Sync contacts ===
-  map('a', function()
+  -- === Contact resolve: ,mC replaces display names with emails in To/Cc/Bcc ===
+  map('C', function()
+    local contacts = require('nvim-mail.contacts')
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local unresolved = {}
+    local pending = 0
+    local header_end = 0
+
+    -- Find header block
+    for i, l in ipairs(lines) do
+      if l == '' then header_end = i - 1; break end
+    end
+
+    -- Collect address header indices and names to resolve
+    local tasks = {}  -- { line_idx, original_line, names[] }
+    for i = 1, header_end do
+      local line = lines[i]
+      if contacts.is_header_line(line) then
+        local after = line:match('^%a+:%s*(.*)')
+        if after and after ~= '' then
+          -- Split by comma, collect entries that have no @
+          local entries = vim.split(after, ',', { trimempty = true })
+          local names = {}
+          for _, e in ipairs(entries) do
+            e = vim.trim(e)
+            if not e:find('@') then names[#names + 1] = e end
+          end
+          if #names > 0 then
+            tasks[#tasks + 1] = { idx = i, line = line, entries = entries, names = names }
+            pending = pending + #names
+          end
+        end
+      end
+    end
+
+    if pending == 0 then
+      vim.notify('All addresses already resolved', vim.log.levels.INFO)
+      return
+    end
+
+    -- For each task, resolve names async in parallel
+    local resolved_lines = {}
+    local done = 0
+    local total = #tasks
+
+    local function finish()
+      done = done + 1
+      if done < total then return end
+      -- Apply resolved lines
+      for _, t in ipairs(tasks) do
+        if resolved_lines[t.idx] then
+          lines[t.idx] = resolved_lines[t.idx]
+        end
+      end
+      vim.schedule(function()
+        vim.api.nvim_buf_set_lines(0, 0, header_end, false, vim.list_slice(lines, 1, header_end))
+        if #unresolved > 0 then
+          vim.notify('⚠ No email found for: ' .. table.concat(unresolved, ', '), vim.log.levels.WARN)
+        else
+          vim.notify('✓ All contacts resolved', vim.log.levels.INFO)
+        end
+      end)
+    end
+
+    for _, t in ipairs(tasks) do
+      local name_results = {}  -- name → email string
+      local name_pending = #t.names
+      for _, name in ipairs(t.names) do
+        vim.system(
+          { 'khard', 'email', '--parsable', '--remove-first-line', name },
+          { text = true },
+          function(result)
+            local email = (result.stdout or ''):match('^([^\t\n]+)')
+            if email and email ~= '' then
+              name_results[name] = string.format('%s <%s>', name, email)
+            else
+              name_results[name] = nil
+              unresolved[#unresolved + 1] = name
+            end
+            name_pending = name_pending - 1
+            if name_pending == 0 then
+              -- Rebuild the header line
+              local new_entries = {}
+              for _, e in ipairs(t.entries) do
+                local trimmed = vim.trim(e)
+                new_entries[#new_entries + 1] = name_results[trimmed] or trimmed
+              end
+              local prefix = t.line:match('^(%a+:%s*)')
+              resolved_lines[t.idx] = prefix .. table.concat(new_entries, ', ')
+              finish()
+            end
+          end
+        )
+      end
+    end
+  end, ' Resolve contacts')
+
     vim.notify('Syncing contacts...', vim.log.levels.INFO)
     vim.fn.system({ 'khard', 'sync' })
     vim.notify('Contacts synced', vim.log.levels.INFO)

@@ -238,24 +238,8 @@ function M.calendar(opts)
           vim.cmd('startinsert')
         end
 
-        -- Parallel khard lookups
-        local emails = {}
-        local pending = #attendees
-        for i, name in ipairs(attendees) do
-          emails[i] = name  -- default fallback
-          vim.system({ 'khard', 'email', '--parsable', '--remove-first-line', name }, { text = true }, function(result)
-            if result.code == 0 then
-              local email = (result.stdout or ''):match('^([^\t\n]+)')
-              if email and email ~= '' then
-                emails[i] = string.format('%s <%s>', name, email)
-              end
-            end
-            pending = pending - 1
-            if pending == 0 then
-              vim.schedule(function() open_buffer(emails) end)
-            end
-          end)
-        end
+        -- Open instantly with display names; use ,mC to resolve emails later
+        open_buffer(attendees)
       end)
 
       return true
