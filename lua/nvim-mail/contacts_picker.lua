@@ -16,25 +16,24 @@ local function contacts_picker(opts)
     finder = finders.new_async_job({
       command_generator = function(prompt)
         if not prompt or #prompt < 2 then return nil end
-        -- notmuch address streams results fast; khard is slow so skip for live search
-        return { 'notmuch', 'address', '--format=json', '--deduplicate=address',
-                 '(from:' .. prompt .. '* OR to:' .. prompt .. '*)' }
+        return { 'notmuch', 'address', '--format=text', '--deduplicate=address',
+                 '(from:*' .. prompt .. '* OR to:*' .. prompt .. '*)' }
       end,
       entry_maker = function(line)
-        if not line or line == '' or line == '[' or line == ']' then return nil end
-        -- Strip leading/trailing array chars from streaming JSON
-        line = line:gsub('^,?%s*', ''):gsub('%s*,?$', '')
-        local ok, r = pcall(vim.json.decode, line)
-        if not ok or not r or not r.address then return nil end
-        local name = r.name or ''
-        local display = name ~= '' and string.format('%s <%s>', name, r.address) or r.address
+        if not line or line == '' then return nil end
+        local name, email = line:match('^(.-)%s*<([^>]+)>')
+        if not email then email = vim.trim(line); name = '' end
+        if not email or not email:find('@') then return nil end
+        name = vim.trim(name or '')
+        local display = name ~= '' and string.format('%s <%s>', name, email) or email
         return {
-          value   = { email = r.address, name = name, type = 'notmuch' },
+          value   = { email = email, name = name, type = 'notmuch' },
           display = display,
-          ordinal = name .. ' ' .. r.address,
+          ordinal = name .. ' ' .. email,
         }
       end,
     }),
+    sorter = conf.generic_sorter(opts),
     previewer = previewers.new_buffer_previewer({
       title = 'Contact Details',
       define_preview = function(self, entry)
