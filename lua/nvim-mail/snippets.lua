@@ -2,36 +2,33 @@
 local M = {}
 
 M.config = {
-  -- domain patterns → context name
-  domains = {
-    ['work%.com'] = 'work',
-    ['ericsson%.com'] = 'work',
-    ['personal%.com'] = 'personal',
-    ['gmail%.com'] = 'personal',
-  },
-  -- Snippet definitions per context
+  -- Your display name for signature snippets (set in lazy opts)
+  name = 'Your Name',
+  -- domain patterns → context name (set in lazy opts)
+  domains = {},
+  -- Snippet definitions per context (set in lazy opts, or use defaults)
   snippets = {
     work = {
-      { trigger = 'mty', body = 'Thanks for the update.' },
+      { trigger = 'mty',  body = 'Thanks for the update.' },
       { trigger = 'mpfa', body = 'Please find attached.' },
-      { trigger = 'mbr', body = 'Best regards,\n${1:John}' },
+      { trigger = 'mbr',  body = 'Best regards,\n${1:name}' },
       { trigger = 'mfyi', body = 'FYI — ${1:context}.' },
       { trigger = 'mack', body = 'Acknowledged, will follow up by ${1:date}.' },
     },
     personal = {
-      { trigger = 'mty', body = 'Thanks!' },
-      { trigger = 'mch', body = 'Cheers,\n${1:John}' },
+      { trigger = 'mty',  body = 'Thanks!' },
+      { trigger = 'mch',  body = 'Cheers,\n${1:name}' },
       { trigger = 'mlmk', body = 'Let me know what you think.' },
     },
     general = {
-      { trigger = 'mty', body = 'Thank you.' },
-      { trigger = 'mbr', body = 'Best regards,\n${1:John}' },
-      { trigger = 'msig', body = 'Best,\n${1:John}' },
+      { trigger = 'mty',  body = 'Thank you.' },
+      { trigger = 'mbr',  body = 'Best regards,\n${1:name}' },
+      { trigger = 'msig', body = 'Best,\n${1:name}' },
     },
   },
 }
 
---- Detect context from mail headers
+--- Detect context from mail headers using configured domain patterns.
 ---@param lines string[]
 ---@return string context name
 function M.detect_context(lines)
@@ -47,19 +44,24 @@ function M.detect_context(lines)
   return 'general'
 end
 
---- Get snippets for a context
+--- Get snippets for a context, with name substituted.
 ---@param context string
 ---@return table[]
 function M.get_snippets(context)
-  return M.config.snippets[context] or M.config.snippets.general
+  local snips = M.config.snippets[context] or M.config.snippets.general
+  local name = M.config.name
+  local result = {}
+  for _, s in ipairs(snips) do
+    result[#result + 1] = {
+      trigger = s.trigger,
+      body = s.body:gsub('%${1:name}', '${1:' .. name .. '}'),
+    }
+  end
+  return result
 end
 
---- Load context-aware snippets for buffer (placeholder for future dynamic loading)
---- Currently snippets are loaded via vscode JSON in snips/snippets/mail.json
 ---@param lines string[]
 function M.load_for_buffer(lines)
-  -- Context detection available for future per-recipient snippet switching
-  -- For now, all mail snippets are loaded statically via luasnip lazy_load
   local _ = M.detect_context(lines)
 end
 

@@ -11,6 +11,13 @@ describe('mail.snippets', function()
     return lines
   end
 
+  before_each(function()
+    snippets.config.domains = {
+      ['work%.com'] = 'work',
+      ['gmail%.com'] = 'personal',
+    }
+  end)
+
   describe('detect_context', function()
     it('detects work context from To header', function()
       local lines = read_fixture('draft_work_reply.txt')
@@ -42,6 +49,13 @@ describe('mail.snippets', function()
       local snips = snippets.get_snippets('general')
       assert.is_table(snips)
       assert.is_true(#snips > 0)
+    end)
+
+    it('substitutes configured name in body', function()
+      snippets.config.name = 'Jonny'
+      local snips = snippets.get_snippets('work')
+      local mbr = vim.tbl_filter(function(s) return s.trigger == 'mbr' end, snips)[1]
+      assert.is_truthy(mbr and mbr.body:find('Jonny'))
     end)
   end)
 end)

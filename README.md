@@ -172,6 +172,15 @@ require('nvim-mail').setup({
   prefix = ',m',
   from_list = {},
   spell_langs = { 'en' },
+  snippets = {
+    name = 'Your Name',       -- used in signature snippet placeholders
+    domains = {
+      ['work%.com'] = 'work', -- domain pattern → snippet context
+      ['gmail%.com'] = 'personal',
+    },
+    -- Optional: override snippet definitions per context
+    -- snippets = { work = { ... }, personal = { ... }, general = { ... } }
+  },
   contacts = {
     cmd = 'khard',
     args = { 'email', '-p', '--remove-first-line' },
