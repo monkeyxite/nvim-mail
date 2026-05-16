@@ -3,7 +3,7 @@
 <img src="res/banner.svg" width="400">
 
 [![Tests](https://github.com/monkeyxite/nvim-mail/actions/workflows/test.yml/badge.svg)](https://github.com/monkeyxite/nvim-mail/actions)
-![Tests](https://img.shields.io/badge/tests-56%20passing-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-61%20passing-brightgreen?style=flat-square)
 [![Neovim](https://img.shields.io/badge/requires-neovim%200.10%2B-57A143?style=flat-square&logo=neovim&logoColor=white)](https://neovim.io)
 [![Lua](https://img.shields.io/badge/Lua-5.1%2B-2C2D72?style=flat-square&logo=lua&logoColor=white)](https://www.lua.org)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
@@ -59,6 +59,7 @@ graph LR
 | [notmuch](https://notmuchmail.org) | Thread context, Contacts, Telescope | Yes |
 | [nm-livesearch](https://github.com/dagle/nm-livesearch) | Telescope async search | Yes (for telescope) |
 | [nm-html-extract](link) | Telescope preview, Thread context | Yes |
+| [icalpal](https://github.com/ajrosen/icalPal) | Calendar picker | Yes (for calendar) |
 | [khard](https://github.com/lucc/khard) | Contact completion | Yes |
 | [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) | Mail search | Optional |
 | [blink.cmp](https://github.com/Saghen/blink.cmp) | Completion framework | Optional |
@@ -202,14 +203,16 @@ require('telescope').load_extension('nvim_mail')
 
 ```vim
 :Telescope nvim_mail search
+:Telescope nvim_mail calendar
 ```
 
-Or bind it:
+Or bind:
 ```lua
 vim.keymap.set('n', '<leader>sm', require('telescope').extensions.nvim_mail.search, { desc = '[S]earch [M]ail' })
+vim.keymap.set('n', '<leader>sc', require('telescope').extensions.nvim_mail.calendar, { desc = '[S]earch [C]alendar' })
 ```
 
-### Picker keymaps
+### Mail picker keymaps
 
 | Key | Action |
 |-----|--------|
@@ -222,11 +225,23 @@ vim.keymap.set('n', '<leader>sm', require('telescope').extensions.nvim_mail.sear
 | `Ctrl+n/p` | Next/previous item |
 | `Ctrl+d/u` | Scroll preview down/up |
 
+### Calendar picker keymaps
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Start MoM from template |
+| `Ctrl+o` | Open conference URL |
+| `Ctrl+r` | Email attendees (mail draft) |
+| `Ctrl+s` | Switch date (type date in prompt first) |
+
+Calendar supports: `today`, `tomorrow`, `+N`, `-N`, `YYYY-MM-DD` in prompt.
+Results cached 8 hours (icalpal is slow ~1.7s).
+
 Features:
 - Live results as you type (nm-livesearch async streaming)
-- Account-scoped via `notmuch_path` config
-- Preview: styled ANSI via `nm-html-extract` (same as nms)
-- GTD tagging without leaving the picker
+- Preview: styled meeting details (attendees, time, location, notes)
+- MoM template with attendees pre-filled
+- Account-scoped mail search via `notmuch_path` config
 
 ## 🧪 Tests
 
