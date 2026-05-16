@@ -10,35 +10,28 @@ local function contacts_picker(opts)
   local actions    = require('telescope.actions')
   local action_state = require('telescope.actions.state')
   local previewers = require('telescope.previewers')
-  local contacts   = require('nvim-mail.contacts')
-
-  -- Query khard + notmuch, deduplicated by email
-  local function search(query)
-    if not query or query == '' then return {} end
-    local results = contacts.query(query)
-    -- Index by email for dedup display
-    local by_email = {}
-    for _, r in ipairs(results) do
-      if not by_email[r.email] then by_email[r.email] = r end
-    end
-    local out = {}
-    for _, r in pairs(by_email) do out[#out + 1] = r end
-    table.sort(out, function(a, b) return (a.name or '') < (b.name or '') end)
-    return out
-  end
 
   pickers.new(opts, {
     prompt_title = '  Contacts',
-    finder = finders.new_dynamic({
-      fn = function(prompt)
-        return search(prompt)
+    finder = finders.new_async_job({
+      command_generator = function(prompt)
+        if not prompt or #prompt < 2 then return nil end
+        -- notmuch address streams results fast; khard is slow so skip for live search
+        return { 'notmuch', 'address', '--format=json', '--deduplicate=address',
+                 '(from:' .. prompt .. '* OR to:' .. prompt .. '*)' }
       end,
-      entry_maker = function(r)
-        local display = string.format('%s  <%s>  [%s]', r.name or '', r.email or '', r.type or '')
+      entry_maker = function(line)
+        if not line or line == '' or line == '[' or line == ']' then return nil end
+        -- Strip leading/trailing array chars from streaming JSON
+        line = line:gsub('^,?%s*', ''):gsub('%s*,?$', '')
+        local ok, r = pcall(vim.json.decode, line)
+        if not ok or not r or not r.address then return nil end
+        local name = r.name or ''
+        local display = name ~= '' and string.format('%s <%s>', name, r.address) or r.address
         return {
-          value   = r,
+          value   = { email = r.address, name = name, type = 'notmuch' },
           display = display,
-          ordinal = (r.name or '') .. ' ' .. (r.email or ''),
+          ordinal = name .. ' ' .. r.address,
         }
       end,
     }),
@@ -76,7 +69,7 @@ local function contacts_picker(opts)
         vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
       end,
     }),
-    sorter = conf.generic_sorter(opts),
+    sorter = require('telescope.sorters').empty(),
     attach_mappings = function(prompt_bufnr, map)
 
       -- Enter: insert "Name <email>" at cursor in calling buffer
