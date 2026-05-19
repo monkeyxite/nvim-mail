@@ -401,20 +401,51 @@ function M.setup(opts)
   vim.opt_local.wrap = true
   vim.opt_local.linebreak = true
 
-  -- Attachment awareness: warn on BufWritePre
+  -- Mail header + body sanity checks on BufWritePre
   vim.api.nvim_create_autocmd('BufWritePre', {
     buffer = 0,
     callback = function()
       local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      local warnings = {}
+
+      -- Find header/body split
+      local header_end = #lines
+      for i, l in ipairs(lines) do
+        if l == '' then header_end = i - 1; break end
+      end
+
+      -- Check required headers
+      local headers = {}
+      for i = 1, header_end do
+        local k, v = lines[i]:match('^([%a%-]+):%s*(.*)')
+        if k then headers[k:lower()] = v end
+      end
+      if not headers['to'] or headers['to'] == '' then
+        warnings[#warnings+1] = '⚠ To: is empty'
+      end
+      if not headers['subject'] or headers['subject'] == '' then
+        warnings[#warnings+1] = '⚠ Subject: is empty'
+      end
+
+      -- Check for headers accidentally typed in body
+      for i = header_end + 2, #lines do
+        if lines[i]:match('^(From|To|Cc|Bcc|Subject|Date|Message%-ID):%s') then
+          warnings[#warnings+1] = '⚠ Header found in body (line ' .. i .. '): ' .. lines[i]:sub(1, 40)
+          break
+        end
+      end
+
+      -- Attachment check
       local missing, match = attachment.check(lines)
       if missing then
-        vim.notify(
-          string.format('⚠ Mentioned "%s" but no attachment found!', match or 'attachment'),
-          vim.log.levels.WARN
-        )
+        warnings[#warnings+1] = string.format('⚠ Mentioned "%s" but no attachment found!', match or 'attachment')
+      end
+
+      if #warnings > 0 then
+        vim.notify(table.concat(warnings, '\n'), vim.log.levels.WARN)
       end
     end,
-    desc = 'Mail: attachment awareness check',
+    desc = 'Mail: header and body sanity checks',
   })
 
   -- Muttlook marker: show as virtual text
