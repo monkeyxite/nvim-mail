@@ -34,6 +34,13 @@ function M.setup(opts)
   if not M._configured then
     M.config = vim.tbl_deep_extend('force', M.config, opts)
     M._configured = true
+    -- Register global FileType autocmd so the plugin self-activates
+    -- for every mail buffer (including nvr --remote-tab-wait from neomutt)
+    vim.api.nvim_create_autocmd('FileType', {
+      pattern = 'mail',
+      callback = function() require('nvim-mail').setup() end,
+      desc = 'nvim-mail: activate per mail buffer',
+    })
   end
 
   local attachment = require('nvim-mail.attachment')
