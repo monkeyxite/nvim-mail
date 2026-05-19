@@ -26,7 +26,7 @@ Pure Lua replacement for [vim-mail](https://github.com/dbeniamine/vim-mail). Des
 
 | Feature | Description |
 |---------|-------------|
-| 📎 **Attachment awareness** | Warns on save if body mentions "attach" but no attachment marker found |
+| 📎 **Attachment awareness** | Warns on save if To:/Subject: empty, headers in body, or "attach" mentioned without attachment |
 | 🔗 **Muttlook markers** | Shows `↩ replying to:` and `🔗 thread:` as virtual text |
 | 📜 **Thread context** | Opens replied-to message rendered in terminal split below |
 | 📇 **Contact completion** | blink-cmp provider for khard, scoped by account |
@@ -144,7 +144,7 @@ All under configurable prefix (default `,m`):
 
 | Trigger | Action |
 |---------|--------|
-| `:w` | Warns if "attach" mentioned but no attachment marker |
+| `:w` | Warns if To: empty, Subject: empty, headers found in body, or "attach" mentioned without attachment |
 | Buffer open | Muttlook markers shown as virtual text |
 | Buffer open | Treesitter markdown, spell, luasnip |
 | `To:/Cc:/Bcc:` | Contact completion (blink-cmp: khard + notmuch) |
