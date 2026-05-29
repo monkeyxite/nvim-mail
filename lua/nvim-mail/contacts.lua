@@ -21,6 +21,10 @@ M.config = {
   args = { 'email', '-p', '--remove-first-line' },
   -- From: → account mapping
   from_map = {},  -- e.g. { ['work%.com'] = 'work', ['gmail%.com'] = 'personal' }
+  -- Calendar name → account mapping (for calendar MoM/reply resolution)
+  calendar_map = {},  -- e.g. { ['Calendar'] = 'work', ['monkeyxite@gmail.com'] = 'personal' }
+  -- Account → From address (used to inject From: in calendar reply)
+  account_from = {},  -- e.g. { work = 'Jonny Hou <jonny.hou@ericsson.com>', personal = 'Jonny Hou <monkeyxite@gmail.com>' }
   -- Work email domain for notmuch Ericsson-style pattern matching
   work_domain = 'example.com',
   -- notmuch address search (searches all indexed mail)
@@ -60,9 +64,12 @@ function M.parse_khard_line(line)
   }
 end
 
---- Detect account from current buffer's From: header
+--- Detect account from current buffer's From: header or buffer-local variable
 ---@return string? account name
 function M.detect_account()
+  -- Check buffer-local override first (set by calendar picker)
+  local buf_acct = vim.b.nvim_mail_account
+  if buf_acct then return buf_acct end
   local lines = vim.api.nvim_buf_get_lines(0, 0, 20, false)
   for _, l in ipairs(lines) do
     if l == '' then break end
@@ -72,6 +79,17 @@ function M.detect_account()
         if from:find(pattern) then return acct end
       end
     end
+  end
+  return nil
+end
+
+--- Resolve account from calendar name
+---@param calendar_name string?
+---@return string? account name
+function M.account_from_calendar(calendar_name)
+  if not calendar_name or calendar_name == '' then return nil end
+  for pattern, acct in pairs(M.config.calendar_map) do
+    if calendar_name:find(pattern) then return acct end
   end
   return nil
 end

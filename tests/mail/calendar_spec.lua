@@ -63,6 +63,8 @@ describe('mail.calendar', function()
     it('creates MoM buffer with attendees', function()
       local event = {
         title = 'Design Review',
+        sctime = '2026-05-15 09:00:00',
+        ectime = '2026-05-15 10:00:00',
         attendees = { 'alice@work.com', 'bob@work.com', 'carol@work.com' },
       }
       calendar._start_mom(event)
@@ -74,7 +76,57 @@ describe('mail.calendar', function()
       assert.is_truthy(text:find('carol@work.com'))
       assert.is_truthy(text:find('## Agenda'))
       assert.is_truthy(text:find('## Action Items'))
+      vim.cmd('stopinsert')
       vim.api.nvim_buf_delete(0, { force = true })
+    end)
+
+    it('includes time from event', function()
+      local event = {
+        title = 'Standup',
+        sctime = '2026-05-15 09:00:00',
+        ectime = '2026-05-15 09:15:00',
+        attendees = { 'alice' },
+      }
+      calendar._start_mom(event)
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      local text = table.concat(lines, '\n')
+      assert.is_truthy(text:find('09:00 %- 09:15'))
+      vim.cmd('stopinsert')
+      vim.api.nvim_buf_delete(0, { force = true })
+    end)
+
+    it('includes agenda from event notes', function()
+      local event = {
+        title = 'Planning',
+        sctime = '2026-05-15 10:00:00',
+        ectime = '2026-05-15 11:00:00',
+        attendees = { 'alice' },
+        notes = 'Review sprint goals\nAssign tasks',
+      }
+      calendar._start_mom(event)
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      local text = table.concat(lines, '\n')
+      assert.is_truthy(text:find('Review sprint goals'))
+      assert.is_truthy(text:find('Assign tasks'))
+      vim.cmd('stopinsert')
+      vim.api.nvim_buf_delete(0, { force = true })
+    end)
+
+    it('sets buffer-local account from calendar name', function()
+      local contacts = require('nvim-mail.contacts')
+      contacts.config.calendar_map = { ['Calendar'] = 'work' }
+      local event = {
+        title = 'Sync',
+        sctime = '2026-05-15 10:00:00',
+        ectime = '2026-05-15 10:30:00',
+        attendees = { 'alice' },
+        calendar = 'Calendar',
+      }
+      calendar._start_mom(event)
+      assert.equals('work', vim.b.nvim_mail_account)
+      vim.cmd('stopinsert')
+      vim.api.nvim_buf_delete(0, { force = true })
+      contacts.config.calendar_map = {}
     end)
   end)
 end)

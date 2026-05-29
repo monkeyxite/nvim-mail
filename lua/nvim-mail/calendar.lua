@@ -63,8 +63,20 @@ local function preview_event(event)
   return lines
 end
 
+local function clean_notes(s)
+  return (s or '')
+    :gsub('<mailto:[^>]+>', '')
+    :gsub('\r\n', '\n'):gsub('\r', '\n')
+    :gsub('\n_{3,}.*', ''):gsub('\nMicrosoft Teams meeting.*', '')
+    :gsub('<https?://[^>]+>', '')
+    :gsub('\n\n\n+', '\n\n')
+    :gsub('^%s+', ''):gsub('%s+$', '')
+end
+
 local function start_mom(event)
   -- Create MoM buffer from meeting template
+  local s = (event.sctime or ''):sub(12, 16)
+  local t = (event.ectime or ''):sub(12, 16)
   local lines = {
     '---',
     'title: "MoM: ' .. (event.title or '') .. '"',
@@ -74,6 +86,8 @@ local function start_mom(event)
     '',
     '# MoM: ' .. (event.title or ''),
     '',
+    '**Time**: ' .. os.date('%Y-%m-%d') .. '  ' .. s .. ' - ' .. t,
+    '',
     '## Attendees',
   }
   for _, a in ipairs(event.attendees or {}) do
@@ -82,8 +96,16 @@ local function start_mom(event)
   lines[#lines + 1] = ''
   lines[#lines + 1] = '## Agenda'
   lines[#lines + 1] = ''
-  lines[#lines + 1] = '1. '
-  lines[#lines + 1] = ''
+  local notes = clean_notes(event.notes)
+  if notes ~= '' then
+    for _, l in ipairs(vim.split(notes, '\n')) do
+      lines[#lines + 1] = l
+    end
+    lines[#lines + 1] = ''
+  else
+    lines[#lines + 1] = '1. '
+    lines[#lines + 1] = ''
+  end
   lines[#lines + 1] = '## Action Items'
   lines[#lines + 1] = ''
   lines[#lines + 1] = '- [ ] '
@@ -91,11 +113,19 @@ local function start_mom(event)
   lines[#lines + 1] = '## Notes'
   lines[#lines + 1] = ''
 
-  vim.cmd('enew')
+  local cache = vim.env.XDG_CACHE_HOME or (vim.env.HOME .. '/.cache')
+  local dir = cache .. '/nvim-mail/mom'
+  vim.fn.mkdir(dir, 'p')
+  local safe_title = (event.title or 'meeting'):gsub('[^%w%-_ ]', ''):sub(1, 50)
+  local fname = dir .. '/' .. os.date('%Y-%m-%d') .. '_' .. safe_title:gsub('%s+', '-') .. '.md'
+  vim.cmd('edit ' .. vim.fn.fnameescape(fname))
   vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
   vim.bo.filetype = 'markdown'
-  -- Position cursor at Agenda item
-  vim.api.nvim_win_set_cursor(0, { 14, 3 })
+  -- Set account context for contact resolution
+  local contacts = require('nvim-mail.contacts')
+  vim.b.nvim_mail_account = contacts.account_from_calendar(event.calendar)
+  -- Position cursor at Notes section
+  vim.api.nvim_win_set_cursor(0, { #lines, 0 })
   vim.cmd('startinsert')
 end
 
@@ -199,41 +229,39 @@ function M.calendar(opts)
         local attendees = event.attendees or {}
         if #attendees == 0 then return end
 
-        -- Clean notes: strip mailto, Teams boilerplate, normalize newlines
-        local function clean_notes(s)
-          return (s or '')
-            :gsub('<mailto:[^>]+>', '')
-            :gsub('\r\n', '\n'):gsub('\r', '\n')
-            :gsub('\n_{3,}.*', ''):gsub('\nMicrosoft Teams meeting.*', '')
-            :gsub('<https?://[^>]+>', '')
-            :gsub('\n\n\n+', '\n\n')
-            :gsub('^%s+', ''):gsub('%s+$', '')
-        end
-
         local function open_buffer(emails)
+          local contacts = require('nvim-mail.contacts')
+          local acct = contacts.account_from_calendar(event.calendar)
+          local from = acct and contacts.config.account_from[acct] or ''
           local date_str = os.date('%Y-%m-%d')
           local s = (event.sctime or ''):sub(12, 16)
           local t = (event.ectime or ''):sub(12, 16)
           local notes = clean_notes(event.notes)
-          local lines = {
-            'To: ' .. table.concat(emails, ', '),
-            'Subject: MoM: ' .. (event.title or ''),
-            '',
-            '## ' .. (event.title or '') .. ' - ' .. date_str,
-            '',
-            '**Date**: ' .. date_str .. '  ' .. s .. ' - ' .. t,
-            '**Attendees**: ' .. table.concat(attendees, ', '),
-            '',
-          }
+          local lines = {}
+          if from ~= '' then lines[#lines + 1] = 'From: ' .. from end
+          lines[#lines + 1] = 'To: ' .. table.concat(emails, ', ')
+          lines[#lines + 1] = 'Subject: MoM: ' .. (event.title or '')
+          lines[#lines + 1] = ''
+          lines[#lines + 1] = '## ' .. (event.title or '') .. ' - ' .. date_str
+          lines[#lines + 1] = ''
+          lines[#lines + 1] = '**Date**: ' .. date_str .. '  ' .. s .. ' - ' .. t
+          lines[#lines + 1] = '**Attendees**: ' .. table.concat(attendees, ', ')
+          lines[#lines + 1] = ''
           if notes ~= '' then
             vim.list_extend(lines, { '## Agenda', '' })
             vim.list_extend(lines, vim.split(notes, '\n'))
             lines[#lines + 1] = ''
           end
           vim.list_extend(lines, { '## Notes', '', '', '## Action Points', '', '- [ ] ' })
-          vim.cmd('enew')
+          local cache = vim.env.XDG_CACHE_HOME or (vim.env.HOME .. '/.cache')
+          local dir = cache .. '/nvim-mail/reply'
+          vim.fn.mkdir(dir, 'p')
+          local safe_title = (event.title or 'meeting'):gsub('[^%w%-_ ]', ''):sub(1, 50)
+          local fname = dir .. '/' .. os.date('%Y-%m-%d') .. '_' .. safe_title:gsub('%s+', '-') .. '.eml'
+          vim.cmd('edit ' .. vim.fn.fnameescape(fname))
           vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
           vim.bo.filetype = 'mail'
+          vim.b.nvim_mail_account = acct
           vim.api.nvim_win_set_cursor(0, { #lines - 3, 0 })
           vim.cmd('startinsert')
         end

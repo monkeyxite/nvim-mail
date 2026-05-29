@@ -253,6 +253,53 @@ vim.keymap.set('n', '<leader>sK', require('telescope').extensions.nvim_mail.cont
 Calendar supports: `today`, `tomorrow`, `+N`, `-N`, `YYYY-MM-DD` in prompt.
 Powered by [kcal](https://github.com/monkeyxite/kcal) — native EventKit, ~85ms vs ~3s for icalpal.
 
+#### Account-aware contact resolution
+
+When creating a MoM or reply from the calendar picker, contacts are resolved using the account associated with the event's calendar. Configure the mapping:
+
+```lua
+require('nvim-mail').setup({
+  contacts = {
+    -- Map calendar names (from kcal) → account names
+    calendar_map = {
+      ['Calendar'] = 'work',           -- Exchange default calendar
+      ['jonny.hou@ericsson.com'] = 'work',
+      ['monkeyxite@gmail.com'] = 'personal',
+    },
+    -- Map account → From address (injected into reply .eml)
+    account_from = {
+      work = 'Jonny Hou <jonny.hou@ericsson.com>',
+      personal = 'Jonny Hou <monkeyxite@gmail.com>',
+    },
+    -- Map From: patterns → account (for ,mC resolver in compose buffers)
+    from_map = {
+      ['ericsson%.com'] = 'work',
+      ['gmail%.com'] = 'personal',
+    },
+    -- Per-account khard address books
+    accounts = {
+      work = {
+        cmd = 'khard',
+        args = { 'email', '-p', '--remove-first-line', '-A', 'work' },
+        notmuch_path = 'work',
+      },
+      personal = {
+        cmd = 'khard',
+        args = { 'email', '-p', '--remove-first-line', '-A', 'personal' },
+        notmuch_path = 'monkeyxite@gmail.com',
+      },
+    },
+    work_domain = 'ericsson.com',
+  },
+})
+```
+
+Resolution priority per account:
+1. **khard** — account-scoped address book (`-A work` or `-A personal`)
+2. **notmuch** — scoped by `path:work/**` or `path:monkeyxite@gmail.com/**`
+3. **Ericsson pattern** — `first.last@work_domain` (work account only)
+4. **LDAP** — DavMail corporate directory (work account only)
+
 ### Contacts picker (`<leader>sK` / `,mK`)
 
 ```vim

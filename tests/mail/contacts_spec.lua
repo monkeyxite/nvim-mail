@@ -94,6 +94,40 @@ describe('mail.contacts', function()
       assert.is_nil(contacts.detect_account())
       vim.api.nvim_buf_delete(buf, { force = true })
     end)
+
+    it('prefers buffer-local account over From header', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'From: John <john@work.com>',
+        'To: someone@example.com',
+        '',
+        'body',
+      })
+      vim.api.nvim_set_current_buf(buf)
+      vim.b.nvim_mail_account = 'personal'
+      contacts.config.from_map = { ['work%.com'] = 'work' }
+      assert.equals('personal', contacts.detect_account())
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+  end)
+
+  describe('account_from_calendar', function()
+    it('maps calendar name to account', function()
+      contacts.config.calendar_map = { ['Calendar'] = 'work', ['monkeyxite'] = 'personal' }
+      assert.equals('work', contacts.account_from_calendar('Calendar'))
+      assert.equals('personal', contacts.account_from_calendar('monkeyxite@gmail.com'))
+    end)
+
+    it('returns nil for unknown calendar', function()
+      contacts.config.calendar_map = { ['Calendar'] = 'work' }
+      assert.is_nil(contacts.account_from_calendar('Holidays'))
+    end)
+
+    it('returns nil for empty/nil input', function()
+      contacts.config.calendar_map = { ['Calendar'] = 'work' }
+      assert.is_nil(contacts.account_from_calendar(nil))
+      assert.is_nil(contacts.account_from_calendar(''))
+    end)
   end)
 
   describe('query_notmuch', function()
