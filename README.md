@@ -77,27 +77,27 @@ graph LR
   'monkeyxite/nvim-mail',
   opts = {
     from_list = {
-      'John Doe <john@work.com>',
-      'John Doe <john@gmail.com>',
+      'Your Name <you@company.com>',
+      'Your Name <you@gmail.com>',
     },
     spell_langs = { 'en', 'sv' },
     send_accounts = {
       ['work'] = '-e "source ~/.config/mutt/accounts/work.muttrc"',
-      ['gmail'] = '-e "source ~/.config/mutt/accounts/personal.muttrc"',
+      ['personal'] = '-e "source ~/.config/mutt/accounts/personal.muttrc"',
     },
     contacts = {
-      from_map = { ['work%.com'] = 'work', ['gmail%.com'] = 'personal' },
+      from_map = { ['company%.com'] = 'work', ['gmail%.com'] = 'personal' },
       notmuch = true,
       accounts = {
         work = {
           cmd = 'khard', args = { 'email', '-p', '--remove-first-line', '-A', 'work' },
           notmuch_path = 'work',
-          from = 'John Doe <john@work.com>',
+          from = 'Your Name <you@company.com>',
         },
         personal = {
           cmd = 'khard', args = { 'email', '-p', '--remove-first-line', '-A', 'personal' },
           notmuch_path = 'personal@gmail.com',
-          from = 'John Doe <john@gmail.com>',
+          from = 'Your Name <you@gmail.com>',
         },
       },
     },
@@ -263,17 +263,17 @@ require('nvim-mail').setup({
     -- Map calendar names (from kcal) → account names
     calendar_map = {
       ['Calendar'] = 'work',           -- Exchange default calendar
-      ['jonny.hou@ericsson.com'] = 'work',
-      ['monkeyxite@gmail.com'] = 'personal',
+      ['you@company.com'] = 'work',
+      ['you@gmail.com'] = 'personal',
     },
     -- Map account → From address (injected into reply .eml)
     account_from = {
-      work = 'Jonny Hou <jonny.hou@ericsson.com>',
-      personal = 'Jonny Hou <monkeyxite@gmail.com>',
+      work = 'Your Name <you@company.com>',
+      personal = 'Your Name <you@gmail.com>',
     },
     -- Map From: patterns → account (for ,mC resolver in compose buffers)
     from_map = {
-      ['ericsson%.com'] = 'work',
+      ['company%.com'] = 'work',
       ['gmail%.com'] = 'personal',
     },
     -- Per-account khard address books
@@ -286,18 +286,18 @@ require('nvim-mail').setup({
       personal = {
         cmd = 'khard',
         args = { 'email', '-p', '--remove-first-line', '-A', 'personal' },
-        notmuch_path = 'monkeyxite@gmail.com',
+        notmuch_path = 'you@gmail.com',
       },
     },
-    work_domain = 'ericsson.com',
+    work_domain = 'company.com',
   },
 })
 ```
 
 Resolution priority per account:
 1. **khard** — account-scoped address book (`-A work` or `-A personal`)
-2. **notmuch** — scoped by `path:work/**` or `path:monkeyxite@gmail.com/**`
-3. **Ericsson pattern** — `first.last@work_domain` (work account only)
+2. **notmuch** — scoped by `path:work/**` or `path:you@gmail.com/**`
+3. **Corporate pattern** — `first.last@work_domain` (work account only)
 4. **LDAP** — DavMail corporate directory (work account only)
 
 ### Contacts picker (`<leader>sK` / `,mK`)
@@ -321,7 +321,7 @@ Loads khard contacts instantly (~300ms). `Ctrl+e` merges notmuch addresses on de
 Resolves display names in `To:`/`Cc:`/`Bcc:` to emails using a 3-stage pipeline:
 
 1. **khard** — local vcard store, 3 name variants (original, suffix-stripped, first+last)
-2. **notmuch** — Ericsson email pattern (`first.last@ericsson.com`) with transliteration (ä→a, ö→o) and name validation
+2. **notmuch** — corporate email pattern (`first.last@company.com`) with transliteration (ä→a, ö→o) and name validation
 3. **ldap** — DavMail LDAP as last resort, shows `⏳ LDAP lookup for: <name>` warning
 
 Successful notmuch and ldap results are auto-saved to khard for instant lookup next time.
