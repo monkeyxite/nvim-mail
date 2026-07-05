@@ -64,6 +64,38 @@ function M.parse_khard_line(line)
   }
 end
 
+--- Parse khard stdout into a list of contact items
+---@param output string
+---@return {email: string, name: string, type?: string}[]
+function M.parse_khard_output(output)
+  local results = {}
+  for _, line in ipairs(vim.split(output or '', '\n')) do
+    local item = M.parse_khard_line(line)
+    if item then results[#results + 1] = item end
+  end
+  return results
+end
+
+--- Parse notmuch JSON address output into a list of contact items
+---@param output string
+---@return {email: string, name: string, type?: string}[]
+function M.parse_notmuch_output(output)
+  if not output or output == '' then return {} end
+  local ok, data = pcall(vim.json.decode, output)
+  if not ok or not data then return {} end
+  local results = {}
+  for _, entry in ipairs(data) do
+    if entry.address then
+      results[#results + 1] = {
+        email = entry.address,
+        name = entry.name or '',
+        type = 'notmuch',
+      }
+    end
+  end
+  return results
+end
+
 --- Detect account from current buffer's From: header or buffer-local variable
 ---@return string? account name
 function M.detect_account()
@@ -94,67 +126,78 @@ function M.account_from_calendar(calendar_name)
   return nil
 end
 
---- Query notmuch for addresses matching a string (scoped by account)
+--- Async query: runs khard and (optionally) notmuch, merges results, calls cb.
+--- Both external processes run concurrently; cb is called once both complete.
 ---@param query string
----@return {email: string, name: string, type?: string}[]
-function M.query_notmuch(query)
-  if query == '' then return {} end
-  -- Scope by account path if available
-  local acct = M.detect_account()
-  local path_filter = ''
-  if acct and M.config.accounts[acct] and M.config.accounts[acct].notmuch_path then
-    path_filter = ' AND path:' .. M.config.accounts[acct].notmuch_path .. '/**'
+---@param cb fun(results: {email: string, name: string, type?: string}[])
+function M.query_async(query, cb)
+  if query == '' then
+    cb({})
+    return
   end
-  local nm_query = '(from:' .. query .. '* OR to:' .. query .. '*)' .. path_filter
-  local output = vim.fn.system({ 'notmuch', 'address', '--format=json', '--deduplicate=address', nm_query })
-  if vim.v.shell_error ~= 0 then return {} end
-  local ok, data = pcall(vim.json.decode, output)
-  if not ok or not data then return {} end
-  local results = {}
-  for _, entry in ipairs(data) do
-    if entry.address then
-      results[#results + 1] = {
-        email = entry.address,
-        name = entry.name or '',
-        type = 'notmuch',
-      }
-    end
-  end
-  return results
-end
 
---- Query khard for contacts matching a string
----@param query string
----@return {email: string, name: string, type?: string}[]
-function M.query(query)
-  if query == '' then return {} end
   -- Pick account-specific config or fallback
   local acct = M.detect_account()
   local cmd_cfg = (acct and M.config.accounts[acct]) or { cmd = M.config.cmd, args = M.config.args }
-  local cmd = { cmd_cfg.cmd }
-  vim.list_extend(cmd, cmd_cfg.args)
-  table.insert(cmd, query)
-  local output = vim.fn.system(cmd)
-  if vim.v.shell_error ~= 0 then return {} end
-  local results = {}
-  for _, line in ipairs(vim.split(output, '\n')) do
-    local item = M.parse_khard_line(line)
-    if item then results[#results + 1] = item end
-  end
-  -- Merge notmuch results
+  local khard_cmd = { cmd_cfg.cmd }
+  vim.list_extend(khard_cmd, cmd_cfg.args)
+  table.insert(khard_cmd, query)
+
+  -- Build notmuch command (if enabled)
+  local notmuch_cmd = nil
   if M.config.notmuch then
-    local nm_results = M.query_notmuch(query)
-    -- Deduplicate by email
-    local seen = {}
-    for _, r in ipairs(results) do seen[r.email] = true end
-    for _, r in ipairs(nm_results) do
-      if not seen[r.email] then
-        results[#results + 1] = r
-        seen[r.email] = true
+    local path_filter = ''
+    if acct and M.config.accounts[acct] and M.config.accounts[acct].notmuch_path then
+      path_filter = ' AND path:' .. M.config.accounts[acct].notmuch_path .. '/**'
+    end
+    local nm_query = '(from:' .. query .. '* OR to:' .. query .. '*)' .. path_filter
+    notmuch_cmd = { 'notmuch', 'address', '--format=json', '--deduplicate=address', nm_query }
+  end
+
+  local khard_results = nil
+  local notmuch_results = nil
+  local pending = notmuch_cmd and 2 or 1
+
+  local function merge_and_deliver()
+    pending = pending - 1
+    if pending > 0 then return end
+
+    local results = khard_results or {}
+    if notmuch_results then
+      -- Deduplicate by email
+      local seen = {}
+      for _, r in ipairs(results) do seen[r.email] = true end
+      for _, r in ipairs(notmuch_results) do
+        if not seen[r.email] then
+          results[#results + 1] = r
+          seen[r.email] = true
+        end
       end
     end
+    cb(results)
   end
-  return results
+
+  -- Launch khard async
+  vim.system(khard_cmd, { text = true }, function(result)
+    if result.code ~= 0 then
+      khard_results = {}
+    else
+      khard_results = M.parse_khard_output(result.stdout)
+    end
+    merge_and_deliver()
+  end)
+
+  -- Launch notmuch async (if enabled)
+  if notmuch_cmd then
+    vim.system(notmuch_cmd, { text = true }, function(result)
+      if result.code ~= 0 then
+        notmuch_results = {}
+      else
+        notmuch_results = M.parse_notmuch_output(result.stdout)
+      end
+      merge_and_deliver()
+    end)
+  end
 end
 
 --- blink-cmp provider interface
@@ -182,8 +225,7 @@ function M:get_completions(ctx, callback)
     callback({ items = {}, is_incomplete_forward = true })
     return
   end
-  vim.schedule(function()
-    local results = M.query(query)
+  M.query_async(query, function(results)
     local items = {}
     for _, r in ipairs(results) do
       items[#items + 1] = {
