@@ -38,6 +38,56 @@ describe('mail.snippets', function()
     end)
   end)
 
+  describe('load_for_buffer', function()
+    local captured = {}
+    local ls_stub
+
+    before_each(function()
+      captured = {}
+      ls_stub = {
+        parser = {
+          parse_snippet = function(trigger, body)
+            return { trigger = trigger, body = body }
+          end,
+        },
+        add_snippets = function(ft, snips, opts)
+          captured.ft = ft
+          captured.snips = snips
+          captured.opts = opts
+        end,
+      }
+      package.loaded['luasnip'] = ls_stub
+    end)
+
+    after_each(function()
+      package.loaded['luasnip'] = nil
+    end)
+
+    it('calls ls.add_snippets with ft=mail and key=nvim-mail-work for work context', function()
+      local lines = read_fixture('draft_work_reply.txt')
+      snippets.load_for_buffer(lines)
+      assert.equals('mail', captured.ft)
+      assert.equals('nvim-mail-work', captured.opts and captured.opts.key)
+      assert.is_true(#(captured.snips or {}) > 0)
+    end)
+
+    it('uses general context for unknown recipients', function()
+      local lines = read_fixture('draft_no_attach.txt')
+      snippets.load_for_buffer(lines)
+      assert.equals('nvim-mail-general', captured.opts and captured.opts.key)
+    end)
+
+    it('does nothing when luasnip is unavailable', function()
+      package.loaded['luasnip'] = nil
+      -- make require fail by temporarily breaking the path
+      local orig = package.preload['luasnip']
+      package.preload['luasnip'] = function() error('not installed') end
+      local ok = pcall(snippets.load_for_buffer, read_fixture('draft_work_reply.txt'))
+      assert.is_true(ok)  -- must not raise
+      package.preload['luasnip'] = orig
+    end)
+  end)
+
   describe('get_snippets', function()
     it('returns table of snippets for context', function()
       local snips = snippets.get_snippets('work')

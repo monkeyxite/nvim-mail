@@ -62,7 +62,15 @@ end
 
 ---@param lines string[]
 function M.load_for_buffer(lines)
-  local _ = M.detect_context(lines)
+  local ctx = M.detect_context(lines)
+  local ok, ls = pcall(require, 'luasnip')
+  if not ok then return end
+  local snips = M.get_snippets(ctx)
+  local ls_snips = {}
+  for _, s in ipairs(snips) do
+    ls_snips[#ls_snips + 1] = ls.parser.parse_snippet(s.trigger, s.body)
+  end
+  ls.add_snippets('mail', ls_snips, { key = 'nvim-mail-' .. ctx })
 end
 
 return M
