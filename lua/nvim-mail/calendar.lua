@@ -75,18 +75,20 @@ end
 
 local function start_mom(event)
   -- Create MoM buffer from meeting template
+  local event_date = (event.sctime or ''):sub(1, 10)
+  local date_str = event_date ~= '' and event_date or os.date('%Y-%m-%d')
   local s = (event.sctime or ''):sub(12, 16)
   local t = (event.ectime or ''):sub(12, 16)
   local lines = {
     '---',
     'title: "MoM: ' .. (event.title or '') .. '"',
-    'date: ' .. os.date('%Y-%m-%d'),
+    'date: ' .. date_str,
     'tags: [mom, meeting]',
     '---',
     '',
     '# MoM: ' .. (event.title or ''),
     '',
-    '**Time**: ' .. os.date('%Y-%m-%d') .. '  ' .. s .. ' - ' .. t,
+    '**Time**: ' .. date_str .. '  ' .. s .. ' - ' .. t,
     '',
     '## Attendees',
   }
@@ -117,7 +119,7 @@ local function start_mom(event)
   local dir = cache .. '/nvim-mail/mom'
   vim.fn.mkdir(dir, 'p')
   local safe_title = (event.title or 'meeting'):gsub('[^%w%-_ ]', ''):sub(1, 50)
-  local fname = dir .. '/' .. os.date('%Y-%m-%d') .. '_' .. safe_title:gsub('%s+', '-') .. '.md'
+  local fname = dir .. '/' .. date_str .. '_' .. safe_title:gsub('%s+', '-') .. '.md'
   vim.cmd('edit ' .. vim.fn.fnameescape(fname))
   vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
   vim.bo.filetype = 'markdown'
@@ -233,7 +235,8 @@ function M.calendar(opts)
           local contacts = require('nvim-mail.contacts')
           local acct = contacts.account_from_calendar(event.calendar)
           local from = acct and contacts.config.account_from[acct] or ''
-          local date_str = os.date('%Y-%m-%d')
+          local event_date = (event.sctime or ''):sub(1, 10)
+          local date_str = event_date ~= '' and event_date or os.date('%Y-%m-%d')
           local s = (event.sctime or ''):sub(12, 16)
           local t = (event.ectime or ''):sub(12, 16)
           local notes = clean_notes(event.notes)
@@ -257,7 +260,7 @@ function M.calendar(opts)
           local dir = cache .. '/nvim-mail/reply'
           vim.fn.mkdir(dir, 'p')
           local safe_title = (event.title or 'meeting'):gsub('[^%w%-_ ]', ''):sub(1, 50)
-          local fname = dir .. '/' .. os.date('%Y-%m-%d') .. '_' .. safe_title:gsub('%s+', '-') .. '.eml'
+          local fname = dir .. '/' .. date_str .. '_' .. safe_title:gsub('%s+', '-') .. '.eml'
           vim.cmd('edit ' .. vim.fn.fnameescape(fname))
           vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
           vim.bo.filetype = 'mail'

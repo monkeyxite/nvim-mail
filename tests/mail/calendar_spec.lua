@@ -128,5 +128,25 @@ describe('mail.calendar', function()
       vim.api.nvim_buf_delete(0, { force = true })
       contacts.config.calendar_map = {}
     end)
+
+    it('uses event date (not today) for date field and filename', function()
+      local event = {
+        title = 'Future Sync',
+        sctime = '2027-01-15T10:00:00Z',
+        ectime = '2027-01-15T11:00:00Z',
+        attendees = { 'alice@work.com' },
+      }
+      calendar._start_mom(event)
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      local text = table.concat(lines, '\n')
+      -- frontmatter date and Time line must use event date
+      assert.is_truthy(text:find('date: 2027%-01%-15'))
+      assert.is_truthy(text:find('2027%-01%-15.*10:00'))
+      -- buffer name (filename) must contain event date
+      local bufname = vim.api.nvim_buf_get_name(0)
+      assert.is_truthy(bufname:find('2027%-01%-15'), 'filename should contain 2027-01-15, got: ' .. bufname)
+      vim.cmd('stopinsert')
+      vim.api.nvim_buf_delete(0, { force = true })
+    end)
   end)
 end)
