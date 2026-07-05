@@ -107,12 +107,19 @@ end
 ---@param langs string[]
 function M.switch_spell(langs)
   langs = langs or { 'en', 'sv' }
+  -- If spell is currently off, start cycle from first lang
+  if not vim.opt_local.spell:get() then
+    vim.opt_local.spell = true
+    vim.opt_local.spelllang = langs[1]
+    vim.notify('Spell: ' .. langs[1], vim.log.levels.INFO)
+    return
+  end
   local current = vim.opt_local.spelllang:get()
   local cur_str = table.concat(current, ',')
-  -- Find current in list, cycle to next
+  -- Find current in list, cycle to next; exceed length means spell off
   for idx, lang in ipairs(langs) do
     if cur_str == lang then
-      local next_idx = idx % #langs + 1
+      local next_idx = idx + 1
       if next_idx > #langs then
         vim.opt_local.spell = false
         vim.notify('Spell off', vim.log.levels.INFO)
@@ -124,7 +131,7 @@ function M.switch_spell(langs)
       return
     end
   end
-  -- Not found, set first
+  -- Current lang not in list, set first
   vim.opt_local.spell = true
   vim.opt_local.spelllang = langs[1]
   vim.notify('Spell: ' .. langs[1], vim.log.levels.INFO)

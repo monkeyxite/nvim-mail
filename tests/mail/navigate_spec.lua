@@ -54,6 +54,35 @@ describe('mail.navigate', function()
     end)
   end)
 
+  describe('switch_spell', function()
+    local langs = { 'en', 'sv' }
+
+    after_each(function()
+      vim.opt_local.spell = false
+      vim.opt_local.spelllang = 'en'
+    end)
+
+    it('cycles: lang1 -> lang2 -> off -> lang1', function()
+      -- Starting state: spell on at lang1
+      vim.opt_local.spell = true
+      vim.opt_local.spelllang = langs[1]
+
+      -- lang1 -> lang2
+      nav.switch_spell(langs)
+      assert.is_true(vim.opt_local.spell:get())
+      assert.are.equal(langs[2], table.concat(vim.opt_local.spelllang:get(), ','))
+
+      -- lang2 -> off
+      nav.switch_spell(langs)
+      assert.is_false(vim.opt_local.spell:get())
+
+      -- off -> lang1
+      nav.switch_spell(langs)
+      assert.is_true(vim.opt_local.spell:get())
+      assert.are.equal(langs[1], table.concat(vim.opt_local.spelllang:get(), ','))
+    end)
+  end)
+
   describe('kill_quoted_sig', function()
     it('removes quoted signature block', function()
       local buf = vim.api.nvim_create_buf(false, true)
