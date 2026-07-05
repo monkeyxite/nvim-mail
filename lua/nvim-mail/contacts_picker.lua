@@ -2,6 +2,20 @@
 -- Usage: require('telescope').extensions.nvim_mail.contacts()
 local M = {}
 
+local function parse_entries(stdout)
+  local entries, seen = {}, {}
+  for _, line in ipairs(vim.split(stdout or '', '\n')) do
+    if line ~= '' then
+      local email, name = line:match('^([^\t]+)\t([^\t]+)')
+      if email and email:find('@') and not seen[email] then
+        seen[email] = true
+        entries[#entries + 1] = { email = vim.trim(email), name = vim.trim(name or '') }
+      end
+    end
+  end
+  return entries
+end
+
 local function make_picker(opts, entries, title)
   local pickers      = require('telescope.pickers')
   local finders      = require('telescope.finders')
@@ -123,22 +137,17 @@ end
 
 local function contacts_picker(opts)
   opts = opts or {}
-  -- Query khard synchronously — it's fast (local vcard store)
-  local result = vim.system(
+  vim.notify('Loading contacts...', vim.log.levels.INFO)
+  vim.system(
     { 'khard', 'email', '--parsable', '--remove-first-line', '' },
-    { text = true }
-  ):wait(3000)
-  local entries, seen = {}, {}
-  for _, line in ipairs(vim.split(result.stdout or '', '\n')) do
-    if line ~= '' then
-      local email, name = line:match('^([^\t]+)\t([^\t]+)')
-      if email and email:find('@') and not seen[email] then
-        seen[email] = true
-        entries[#entries + 1] = { email = vim.trim(email), name = vim.trim(name or '') }
-      end
+    { text = true },
+    function(result)
+      local entries = parse_entries(result.stdout)
+      vim.schedule(function()
+        make_picker(opts, entries, '  Contacts (' .. #entries .. ')')
+      end)
     end
-  end
-  make_picker(opts, entries, '  Contacts (' .. #entries .. ')')
+  )
 end
 
 M.contacts = contacts_picker
