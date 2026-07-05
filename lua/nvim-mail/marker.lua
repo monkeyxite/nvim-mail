@@ -43,7 +43,7 @@ function M.apply(bufnr)
   if markers.reply_to then
     vim.api.nvim_buf_set_extmark(bufnr, M.ns, markers.reply_to.line, 0, {
       virt_text = { { ' ↩ replying to: ' .. markers.reply_to.msgid:sub(1, 50), 'Comment' } },
-      virt_text_pos = 'overlay',
+      virt_text_pos = 'eol',
       hl_mode = 'combine',
     })
   end
@@ -51,7 +51,7 @@ function M.apply(bufnr)
   if markers.references then
     vim.api.nvim_buf_set_extmark(bufnr, M.ns, markers.references.line, 0, {
       virt_text = { { ' 🔗 thread: ' .. markers.references.refs:sub(1, 60), 'Comment' } },
-      virt_text_pos = 'overlay',
+      virt_text_pos = 'eol',
       hl_mode = 'combine',
     })
   end
