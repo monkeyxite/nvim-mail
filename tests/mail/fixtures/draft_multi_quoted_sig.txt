@@ -1,0 +1,16 @@
+From: me@example.com
+To: you@example.com
+Subject: Re: Re: Hello
+
+My latest reply
+
+> On Tue, Alice wrote:
+> > On Mon, Bob wrote:
+> > -- 
+> > Bob Smith
+> > Bob's Company
+> 
+> Alice's reply
+> -- 
+> Alice Johnson
+> Alice Corp

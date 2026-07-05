@@ -106,5 +106,63 @@ describe('mail.navigate', function()
       assert.is_truthy(text:find('Original message'))
       vim.api.nvim_buf_delete(buf, { force = true })
     end)
+
+    it('removes ALL quoted signature blocks in a long thread', function()
+      -- This test fails against the old code (which only removed the last block)
+      -- and passes with the new collect_quoted_sig_ranges-based implementation.
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'From: me@example.com',
+        'To: you@example.com',
+        '',
+        'My latest reply',
+        '',
+        '> On Tue, Alice wrote:',
+        '> > On Mon, Bob wrote:',
+        '> > -- ',
+        '> > Bob Smith',
+        '> > Bob Corp',
+        '',
+        '> Alice reply',
+        '> -- ',
+        '> Alice Johnson',
+        '> Alice Corp',
+      })
+      vim.api.nvim_set_current_buf(buf)
+      nav.kill_quoted_sig()
+      local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      local text = table.concat(lines, '\n')
+      -- Both sig blocks must be gone
+      assert.is_falsy(text:find('Bob Smith'),    'Bob Smith should be removed')
+      assert.is_falsy(text:find('Bob Corp'),     'Bob Corp should be removed')
+      assert.is_falsy(text:find('Alice Johnson'), 'Alice Johnson should be removed')
+      assert.is_falsy(text:find('Alice Corp'),   'Alice Corp should be removed')
+      -- Non-sig quoted content must survive
+      assert.is_truthy(text:find('My latest reply'), 'own reply must survive')
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('collect_quoted_sig_ranges returns correct ranges (pure, no buffer)', function()
+      -- Blank line on line 6 separates the two quoted-sig blocks so ranges
+      -- don't bleed into each other.
+      local lines = {
+        'My reply',           -- 1
+        '> On Tue, Alice:',   -- 2
+        '> > -- ',            -- 3  range1.start
+        '> > Bob Smith',      -- 4
+        '> > Bob Corp',       -- 5  range1.stop
+        '',                   -- 6  non-'>' stops range1
+        '> -- ',              -- 7  range2.start
+        '> Alice Johnson',    -- 8  range2.stop
+      }
+      local ranges = nav.collect_quoted_sig_ranges(lines)
+      assert.equals(2, #ranges)
+      -- First block: line 3 through line 5
+      assert.equals(3, ranges[1].start)
+      assert.equals(5, ranges[1].stop)
+      -- Second block: line 7 through line 8
+      assert.equals(7, ranges[2].start)
+      assert.equals(8, ranges[2].stop)
+    end)
   end)
 end)

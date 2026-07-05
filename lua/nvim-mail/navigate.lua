@@ -63,23 +63,34 @@ function M.goto_end_of_reply()
   end
 end
 
---- Kill quoted signatures (lines after "> -- " in quotes)
-function M.kill_quoted_sig()
-  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-  local start = nil
+--- Collect all quoted-signature ranges in a line array (pure, no buffer I/O)
+--- Each range is { start = <1-based>, stop = <1-based> } covering the
+--- '> --' separator line and every following quoted line.
+---@param lines string[]
+---@return {start: integer, stop: integer}[]
+function M.collect_quoted_sig_ranges(lines)
+  local ranges = {}
   for i, l in ipairs(lines) do
-    if l:match('^> ?%-%-') then
-      start = i
+    if l:match('^>[ >]*%-%-') then
+      local stop = i
+      for j = i + 1, #lines do
+        if lines[j]:match('^>') then stop = j
+        else break end
+      end
+      ranges[#ranges + 1] = { start = i, stop = stop }
     end
   end
-  if start then
-    -- Find end of this quoted block
-    local stop = start
-    for i = start + 1, #lines do
-      if lines[i]:match('^>') then stop = i
-      else break end
-    end
-    vim.api.nvim_buf_set_lines(0, start - 1, stop, false, {})
+  return ranges
+end
+
+--- Kill all quoted signatures (lines starting with "> -- " and the quoted
+--- lines that follow). Handles multiple quoted-sig blocks in long threads.
+function M.kill_quoted_sig()
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local ranges = M.collect_quoted_sig_ranges(lines)
+  -- Remove bottom-to-top so earlier line indices remain valid
+  for k = #ranges, 1, -1 do
+    vim.api.nvim_buf_set_lines(0, ranges[k].start - 1, ranges[k].stop, false, {})
   end
 end
 
