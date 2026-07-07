@@ -28,9 +28,11 @@ vim.filetype.add({
   },
 })
 
+-- Merge user opts into config. Call this from your plugin manager's
+-- `config` / `opts` hook. Does NOT apply any buffer-local setup — that
+-- is handled by ftplugin/mail.lua via M.attach_buffer().
 function M.setup(opts)
   opts = opts or {}
-  -- Only merge opts into config on first call (lazy.nvim opts)
   if not M._configured then
     M.config = vim.tbl_deep_extend('force', M.config, opts)
     M._configured = true
@@ -43,28 +45,18 @@ function M.setup(opts)
       local snippets = require('nvim-mail.snippets')
       snippets.config = vim.tbl_deep_extend('force', snippets.config, M.config.snippets)
     end
-    -- Register global FileType autocmd so the plugin self-activates
-    -- for every mail buffer (including nvr --remote-tab-wait from neomutt)
-    vim.api.nvim_create_autocmd('FileType', {
-      pattern = 'mail',
-      callback = function() require('nvim-mail').setup() end,
-      desc = 'nvim-mail: activate per mail buffer',
-    })
   end
+end
 
+-- Apply buffer-local mappings, options, and autocmds to the current
+-- mail buffer. Called by ftplugin/mail.lua on every mail buffer open.
+function M.attach_buffer()
   local attachment = require('nvim-mail.attachment')
   local marker = require('nvim-mail.marker')
   local thread = require('nvim-mail.thread')
   local preview = require('nvim-mail.preview')
   local snippets = require('nvim-mail.snippets')
   local nav = require('nvim-mail.navigate')
-
-  -- Apply user config
-  if opts.contacts then
-    local contacts = require('nvim-mail.contacts')
-    contacts.config = vim.tbl_deep_extend('force', contacts.config, opts.contacts)
-  end
-  if opts.snippets then snippets.config = vim.tbl_deep_extend('force', snippets.config, opts.snippets) end
 
   local p = M.config.prefix
   local map = function(key, fn, desc)
