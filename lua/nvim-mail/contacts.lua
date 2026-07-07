@@ -82,10 +82,10 @@ end
 function M.parse_notmuch_output(output)
   if not output or output == '' then return {} end
   local ok, data = pcall(vim.json.decode, output)
-  if not ok or not data then return {} end
+  if not ok or type(data) ~= 'table' then return {} end
   local results = {}
   for _, entry in ipairs(data) do
-    if entry.address then
+    if type(entry) == 'table' and entry.address then
       results[#results + 1] = {
         email = entry.address,
         name = entry.name or '',
@@ -139,8 +139,8 @@ function M.query_async(query, cb)
   -- Pick account-specific config or fallback
   local acct = M.detect_account()
   local cmd_cfg = (acct and M.config.accounts[acct]) or { cmd = M.config.cmd, args = M.config.args }
-  local khard_cmd = { cmd_cfg.cmd }
-  vim.list_extend(khard_cmd, cmd_cfg.args)
+  local khard_cmd = { cmd_cfg.cmd or M.config.cmd }
+  vim.list_extend(khard_cmd, cmd_cfg.args or M.config.args or {})
   table.insert(khard_cmd, query)
 
   -- Build notmuch command (if enabled)
@@ -177,8 +177,9 @@ function M.query_async(query, cb)
     cb(results)
   end
 
-  -- Launch khard async
-  vim.system(khard_cmd, { text = true }, function(result)
+  -- Launch khard async. Wrap in pcall so a missing binary doesn't strand the
+  -- callback (which would leave `pending` > 0 forever and never call cb).
+  local khard_ok = pcall(vim.system, khard_cmd, { text = true }, function(result)
     if result.code ~= 0 then
       khard_results = {}
     else
@@ -186,10 +187,14 @@ function M.query_async(query, cb)
     end
     merge_and_deliver()
   end)
+  if not khard_ok then
+    khard_results = {}
+    merge_and_deliver()
+  end
 
   -- Launch notmuch async (if enabled)
   if notmuch_cmd then
-    vim.system(notmuch_cmd, { text = true }, function(result)
+    local nm_ok = pcall(vim.system, notmuch_cmd, { text = true }, function(result)
       if result.code ~= 0 then
         notmuch_results = {}
       else
@@ -197,6 +202,10 @@ function M.query_async(query, cb)
       end
       merge_and_deliver()
     end)
+    if not nm_ok then
+      notmuch_results = {}
+      merge_and_deliver()
+    end
   end
 end
 

@@ -38,7 +38,8 @@ local function notmuch_lookup(name, cb)
       { 'notmuch', 'address', '--deduplicate=address', 'from:' .. cand .. '@' .. work_domain },
       { 'notmuch', 'address', '--deduplicate=address', 'to:' .. cand .. '@' .. work_domain },
     }) do
-      vim.system(cmd, { text = true }, function(result)
+      -- Wrap in pcall so a missing notmuch binary doesn't crash the chain.
+      local ok = pcall(vim.system, cmd, { text = true }, function(result)
         tried = tried + 1
         if found then return end
         for _, line in ipairs(vim.split(result.stdout or '', '\n')) do
@@ -49,6 +50,10 @@ local function notmuch_lookup(name, cb)
         end
         if tried >= total then done(nil) end
       end)
+      if not ok then
+        tried = tried + 1
+        if tried >= total and not found then done(nil) end
+      end
     end
   end
 end
@@ -72,16 +77,19 @@ local function resolve_name(name, cb)
         end)
         local norm2 = r.normalize_name(name)
         local p = vim.split(norm2, ' ', { trimempty = true })
-        vim.system(
+        -- Wrap LDAP in pcall: `ldap_owa_query` may not be installed. Missing
+        -- binary must not crash the resolver chain — treat as "no result".
+        local ldap_ok = pcall(vim.system,
           { 'ldap_owa_query', p[1] or norm2, p[2] or '', 'work' },
           { text = true, timeout = 10000 },
           function(result)
-            if result.code == 124 then
-              vim.schedule(function()
-                vim.notify('⚠ LDAP timeout for: ' .. name, vim.log.levels.WARN)
-              end)
-              cb(nil)
-              return
+            if result.code ~= 0 then
+              if result.code == 124 then
+                vim.schedule(function()
+                  vim.notify('⚠ LDAP timeout for: ' .. name, vim.log.levels.WARN)
+                end)
+              end
+              cb(nil); return
             end
             local line = vim.split(result.stdout or '', '\n')[1] or ''
             local email2 = vim.trim(vim.split(line, '\t')[1] or '')
@@ -91,16 +99,19 @@ local function resolve_name(name, cb)
             end
             cb(email2:find('@') and email2 or nil)
           end)
+        if not ldap_ok then cb(nil) end
       end)
       return
     end
-    vim.system(
+    -- Wrap khard in pcall so a missing binary doesn't strand try_khard.
+    local khard_ok = pcall(vim.system,
       { 'khard', 'email', '--parsable', '--remove-first-line', khard_queries[i] },
       { text = true },
       function(result)
         local email = r.parse_khard(result.stdout)
         if email then cb(email) else try_khard(i + 1) end
       end)
+    if not khard_ok then try_khard(i + 1) end
   end
   try_khard(1)
 end
