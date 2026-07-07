@@ -1,6 +1,6 @@
 -- Telescope extension for notmuch mail search (uses nm-livesearch)
 -- Usage: require('telescope').extensions.nvim_mail.search()
-local M = {}
+local reply = require('nvim-mail.reply')
 
 local function get_msgid_cmd(thread)
   return 'notmuch search --output=messages --limit=1 thread:' .. thread .. ' | sed "s/^id://"'
@@ -70,7 +70,7 @@ local function search(opts)
         end
       end)
 
-      -- Ctrl+r: reply — open draft directly in nvim buffer
+      -- Ctrl+r: reply-all — open draft with To=original sender, Cc=original To+Cc minus self
       map({ 'i', 'n' }, '<C-r>', function()
         actions.close(prompt_bufnr)
         local entry = action_state.get_selected_entry()
@@ -79,12 +79,14 @@ local function search(opts)
           local msgid = vim.fn.system('sh -c \'' .. get_msgid_cmd(entry.thread) .. '\''):gsub('%s+$', '')
           local headers_json = vim.fn.system({ 'notmuch', 'show', '--format=json', '--body=false', 'id:' .. msgid })
           local ok, data = pcall(vim.json.decode, headers_json)
-          local from, subject, msg_id = '', '', msgid
+          local from, subject, msg_id, orig_to, orig_cc = '', '', msgid, '', ''
           if ok and data and data[1] and data[1][1] and data[1][1][1] then
             local hdrs = data[1][1][1].headers or {}
-            from = hdrs.From or ''
-            subject = hdrs.Subject or ''
-            msg_id = hdrs['Message-ID'] or msgid
+            from     = hdrs.From or ''
+            subject  = hdrs.Subject or ''
+            msg_id   = hdrs['Message-ID'] or msgid
+            orig_to  = hdrs.To or ''
+            orig_cc  = hdrs.Cc or ''
           end
           -- Determine From: based on which account received the message
           local file_path = vim.fn.system({ 'notmuch', 'search', '--output=files', '--limit=1', 'id:' .. msgid }):gsub('%s+$', '')
@@ -103,18 +105,22 @@ local function search(opts)
               my_from = init.config.from_list[1]
             end
           end
-          -- Build reply draft
+          -- Build reply-all draft
           local reply_subject = subject:match('^Re:') and subject or ('Re: ' .. subject)
+          local cc_str = reply.build_reply_all_cc(orig_to, orig_cc, my_from)
           local lines = {
             'From: ' .. my_from,
             'To: ' .. from,
-            'Subject: ' .. reply_subject,
-            'In-Reply-To: ' .. msg_id,
-            '',
-            '',
-            '',
-            '[//]: # (muttlook-reply-to:' .. msg_id .. ')',
           }
+          if cc_str ~= '' then
+            lines[#lines + 1] = 'Cc: ' .. cc_str
+          end
+          lines[#lines + 1] = 'Subject: ' .. reply_subject
+          lines[#lines + 1] = 'In-Reply-To: ' .. msg_id
+          lines[#lines + 1] = ''
+          lines[#lines + 1] = ''
+          lines[#lines + 1] = ''
+          lines[#lines + 1] = '[//]: # (muttlook-reply-to:' .. msg_id .. ')'
           -- Open in new buffer
           vim.cmd('enew')
           vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
@@ -175,8 +181,6 @@ local function search(opts)
     end,
   }):find()
 end
-
-M.search = search
 
 local calendar = require('nvim-mail.calendar')
 local contacts_picker = require('nvim-mail.contacts_picker')
