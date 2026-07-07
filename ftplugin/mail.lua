@@ -1,9 +1,12 @@
--- nvim-mail ftplugin loader
--- Called per-buffer. If setup was already called with opts (by lazy.nvim),
--- just apply buffer-local features. Otherwise call setup with defaults.
+-- nvim-mail ftplugin entry point.
+-- Neovim sources this file automatically for every buffer whose filetype is
+-- 'mail'.  We rely on this Neovim convention instead of the self-registering
+-- FileType autocmd that used to live in setup().
+--
+-- If the user already called setup() via their plugin manager (lazy.nvim etc.)
+-- config is ready; otherwise initialise with defaults now.
 local M = require('nvim-mail')
-if M._configured then
-  M.setup(M.config)
-else
+if not M._configured then
   M.setup()
 end
+M.attach_buffer()
