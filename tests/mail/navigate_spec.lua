@@ -52,6 +52,26 @@ describe('mail.navigate', function()
       local pos = vim.api.nvim_win_get_cursor(0)
       local line = vim.api.nvim_buf_get_lines(buf, pos[1] - 1, pos[1], false)[1]
       assert.is_truthy(line:match('^>'))
+      -- Assert exact first-quote line (fixture: draft_with_quotes.txt line 8 is `> On Mon, ...`)
+      assert.are.equal(8, pos[1])
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end)
+
+    it('does not move cursor when there are no quoted lines', function()
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+        'From: a@b.com',
+        'To: c@d.com',
+        'Subject: Hello',
+        '',
+        'Just a plain body line.',
+        'No quotes here.',
+      })
+      vim.api.nvim_set_current_buf(buf)
+      vim.api.nvim_win_set_cursor(0, { 5, 0 })
+      nav.goto_reply()
+      local pos = vim.api.nvim_win_get_cursor(0)
+      assert.are.equal(5, pos[1])
       vim.api.nvim_buf_delete(buf, { force = true })
     end)
   end)
