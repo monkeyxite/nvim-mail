@@ -80,10 +80,12 @@ local function ldap_lookup(name, ldap_cfg, cb)
     cmd[#cmd + 1] = ldap_cfg.account_arg
   end
   vim.system(cmd, { text = true, timeout = ldap_cfg.timeout or 10000 }, function(result)
-    if result.code == 124 then
-      vim.schedule(function()
-        vim.notify('⚠ LDAP timeout for: ' .. name, vim.log.levels.WARN)
-      end)
+    if result.code ~= 0 then
+      if result.code == 124 then
+        vim.schedule(function()
+          vim.notify('⚠ LDAP timeout for: ' .. name, vim.log.levels.WARN)
+        end)
+      end
       cb(nil); return
     end
     local line = vim.split(result.stdout or '', '\n')[1] or ''
@@ -179,19 +181,21 @@ local function resolve_name(name, account_name, cb)
 
   local function try_khard(i)
     if i > #khard_queries then
+      local function try_ldap()
+        if resolver_cfg and resolver_cfg.ldap then
+          ldap_lookup(name, resolver_cfg.ldap, cb)
+        else
+          cb(nil)
+        end
+      end
       -- Stage 2: notmuch (only if resolver has email_pattern + domain)
       if resolver_cfg and resolver_cfg.email_pattern and resolver_cfg.domain then
         notmuch_lookup(name, resolver_cfg, acct_cfg, function(email)
-          if email then cb(email); return end
-          -- Stage 3: LDAP (only if resolver has ldap config)
-          if resolver_cfg.ldap then
-            ldap_lookup(name, resolver_cfg.ldap, cb)
-          else
-            cb(nil)
-          end
+          if email then cb(email) else try_ldap() end
         end)
       else
-        cb(nil)
+        -- Stage 3: LDAP fires whether or not notmuch is configured.
+        try_ldap()
       end
       return
     end
@@ -253,11 +257,23 @@ function M.resolve_buffer(bufnr)
   local function finish()
     done_count = done_count + 1
     if done_count < total then return end
-    for _, t in ipairs(tasks) do
-      if resolved_lines[t.idx] then lines[t.idx] = resolved_lines[t.idx] end
-    end
     vim.schedule(function()
-      vim.api.nvim_buf_set_lines(bufnr, 0, header_end, false, vim.list_slice(lines, 1, header_end))
+      if not vim.api.nvim_buf_is_valid(bufnr) then return end
+      -- Refetch current buffer state to avoid clobbering concurrent user edits.
+      local current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      local current_header_end = #current_lines
+      for i, l in ipairs(current_lines) do
+        if l == '' then current_header_end = i - 1; break end
+      end
+      for _, t in ipairs(tasks) do
+        if resolved_lines[t.idx] and t.idx <= current_header_end and current_lines[t.idx] then
+          -- Only replace if the current line still looks like a header field.
+          if current_lines[t.idx]:match('^%a+:') then
+            current_lines[t.idx] = resolved_lines[t.idx]
+          end
+        end
+      end
+      vim.api.nvim_buf_set_lines(bufnr, 0, current_header_end, false, vim.list_slice(current_lines, 1, current_header_end))
       if #unresolved > 0 then
         vim.notify('⚠ No email found for: ' .. table.concat(unresolved, ', '), vim.log.levels.WARN)
       else
