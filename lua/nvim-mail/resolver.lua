@@ -79,7 +79,7 @@ local function ldap_lookup(name, ldap_cfg, cb)
   if ldap_cfg.account_arg then
     cmd[#cmd + 1] = ldap_cfg.account_arg
   end
-  vim.system(cmd, { text = true, timeout = ldap_cfg.timeout or 10000 }, function(result)
+  local ldap_ok = pcall(vim.system, cmd, { text = true, timeout = ldap_cfg.timeout or 10000 }, function(result)
     if result.code ~= 0 then
       if result.code == 124 then
         vim.schedule(function()
@@ -96,6 +96,7 @@ local function ldap_lookup(name, ldap_cfg, cb)
     end
     cb(email:find('@') and email or nil)
   end)
+  if not ldap_ok then cb(nil) end
 end
 
 --- Stage 2: notmuch lookup using the account's resolver config.
@@ -137,7 +138,7 @@ local function notmuch_lookup(name, resolver_cfg, acct_cfg, cb)
   for _, cand in ipairs(candidates) do
     for _, dir in ipairs({ 'from:', 'to:' }) do
       local query = dir .. cand .. '@' .. domain .. path_filter
-      vim.system(
+      local nm_ok = pcall(vim.system,
         { 'notmuch', 'address', '--deduplicate=address', query },
         { text = true },
         function(result)
@@ -151,6 +152,10 @@ local function notmuch_lookup(name, resolver_cfg, acct_cfg, cb)
           end
           if tried >= total then done(nil) end
         end)
+      if not nm_ok then
+        tried = tried + 1
+        if tried >= total and not found then done(nil) end
+      end
     end
   end
 end
@@ -202,10 +207,11 @@ local function resolve_name(name, account_name, cb)
     local cmd = {}
     vim.list_extend(cmd, khard_base)
     cmd[#cmd + 1] = khard_queries[i]
-    vim.system(cmd, { text = true }, function(result)
+    local khard_ok = pcall(vim.system, cmd, { text = true }, function(result)
       local email = r.parse_khard(result.stdout)
       if email then cb(email) else try_khard(i + 1) end
     end)
+    if not khard_ok then try_khard(i + 1) end
   end
   try_khard(1)
 end
