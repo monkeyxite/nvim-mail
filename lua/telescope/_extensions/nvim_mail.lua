@@ -18,7 +18,7 @@ local function search(opts)
   local previewers = require('telescope.previewers')
 
   pickers.new(opts, {
-    prompt_title = '  Notmuch Search',
+    prompt_title = '  Notmuch  ·  C-r:reply-all  C-o:browser  C-t:tag  C-y:msgid  C-l:preview',
     finder = finders.new_async_job({
       command_generator = function(prompt)
         if not prompt or prompt == '' then return nil end
