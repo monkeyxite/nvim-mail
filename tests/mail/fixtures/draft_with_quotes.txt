@@ -1,0 +1,14 @@
+From: me@example.com
+To: alice@example.com
+Subject: Re: Meeting tomorrow
+Date: Mon, 7 Jul 2026 10:00:00 +0000
+
+Thanks for the update, sounds good.
+
+> On Mon, 7 Jul 2026, Alice wrote:
+> Hi,
+> Just confirming the meeting is at 2pm tomorrow.
+> Let me know if that still works.
+>
+> Thanks,
+> Alice
