@@ -71,11 +71,19 @@ end
 function M.collect_quoted_sig_ranges(lines)
   local ranges = {}
   for i, l in ipairs(lines) do
-    if l:match('^>[ >]*%-%-') then
+    -- Capture the exact quote prefix so we only extend the range to lines
+    -- at the SAME depth. Without this, a deeper-quote signature (e.g. '> > --')
+    -- would swallow subsequent shallower lines (e.g. '> Alice reply') and
+    -- silently delete them from the thread.
+    local prefix = l:match('^(>[ >]*)%-%-')
+    if prefix then
       local stop = i
       for j = i + 1, #lines do
-        if lines[j]:match('^>') then stop = j
-        else break end
+        if lines[j]:sub(1, #prefix) == prefix then
+          stop = j
+        else
+          break
+        end
       end
       ranges[#ranges + 1] = { start = i, stop = stop }
     end

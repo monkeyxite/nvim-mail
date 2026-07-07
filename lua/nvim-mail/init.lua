@@ -34,6 +34,15 @@ function M.setup(opts)
   if not M._configured then
     M.config = vim.tbl_deep_extend('force', M.config, opts)
     M._configured = true
+    -- Propagate submodule configs so user opts.contacts / opts.snippets are honored.
+    if M.config.contacts then
+      local contacts = require('nvim-mail.contacts')
+      contacts.config = vim.tbl_deep_extend('force', contacts.config, M.config.contacts)
+    end
+    if M.config.snippets then
+      local snippets = require('nvim-mail.snippets')
+      snippets.config = vim.tbl_deep_extend('force', snippets.config, M.config.snippets)
+    end
     -- Register global FileType autocmd so the plugin self-activates
     -- for every mail buffer (including nvr --remote-tab-wait from neomutt)
     vim.api.nvim_create_autocmd('FileType', {

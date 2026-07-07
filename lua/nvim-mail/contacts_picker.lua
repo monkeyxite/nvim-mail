@@ -6,7 +6,7 @@ local function parse_entries(stdout)
   local entries, seen = {}, {}
   for _, line in ipairs(vim.split(stdout or '', '\n')) do
     if line ~= '' then
-      local email, name = line:match('^([^\t]+)\t([^\t]+)')
+      local email, name = line:match('^([^\t]+)\t([^\t]*)')
       if email and email:find('@') and not seen[email] then
         seen[email] = true
         entries[#entries + 1] = { email = vim.trim(email), name = vim.trim(name or '') }
