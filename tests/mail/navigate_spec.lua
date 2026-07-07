@@ -47,9 +47,11 @@ describe('mail.navigate', function()
 
   describe('goto_reply', function()
     it('jumps to first quoted line', function()
-      local buf = load_fixture('draft_reply_with_thread.txt')
-      -- This fixture has no quotes, so it should not move
-      -- Let's test with marker fixture which also has no quotes
+      local buf = load_fixture('draft_with_quotes.txt')
+      nav.goto_reply()
+      local pos = vim.api.nvim_win_get_cursor(0)
+      local line = vim.api.nvim_buf_get_lines(buf, pos[1] - 1, pos[1], false)[1]
+      assert.is_truthy(line:match('^>'))
       vim.api.nvim_buf_delete(buf, { force = true })
     end)
   end)
