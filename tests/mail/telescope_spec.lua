@@ -1,4 +1,52 @@
 describe('mail.telescope reply', function()
+  describe('build_reply_all_cc', function()
+    local r
+
+    before_each(function()
+      package.loaded['nvim-mail.reply'] = nil
+      r = require('nvim-mail.reply')
+    end)
+
+    it('returns empty string when no To or Cc', function()
+      assert.equals('', r.build_reply_all_cc('', '', 'me@example.com'))
+    end)
+
+    it('uses orig_to as Cc when no orig_cc', function()
+      local cc = r.build_reply_all_cc('alice@example.com', '', 'me@example.com')
+      assert.equals('alice@example.com', cc)
+    end)
+
+    it('merges orig_to and orig_cc', function()
+      local cc = r.build_reply_all_cc('alice@example.com', 'bob@example.com', 'me@example.com')
+      assert.equals('alice@example.com, bob@example.com', cc)
+    end)
+
+    it('strips self (my_from) from result', function()
+      local cc = r.build_reply_all_cc('alice@example.com, me@example.com', 'bob@example.com', 'me@example.com')
+      assert.equals('alice@example.com, bob@example.com', cc)
+    end)
+
+    it('strips self when my_from is Name <email> form', function()
+      local cc = r.build_reply_all_cc('Alice <alice@example.com>, Me <me@example.com>', '', 'Myself <me@example.com>')
+      assert.equals('Alice <alice@example.com>', cc)
+    end)
+
+    it('deduplicates addresses across To and Cc', function()
+      local cc = r.build_reply_all_cc('alice@example.com', 'alice@example.com, bob@example.com', 'me@example.com')
+      assert.equals('alice@example.com, bob@example.com', cc)
+    end)
+
+    it('returns empty string when only self is in lists', function()
+      local cc = r.build_reply_all_cc('me@example.com', '', 'me@example.com')
+      assert.equals('', cc)
+    end)
+
+    it('self-matching is case-insensitive', function()
+      local cc = r.build_reply_all_cc('ME@EXAMPLE.COM', 'bob@example.com', 'me@example.com')
+      assert.equals('bob@example.com', cc)
+    end)
+  end)
+
   describe('from address detection via notmuch_path', function()
     it('matches work path to work from address', function()
       local contacts = require('nvim-mail.contacts')
