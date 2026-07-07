@@ -114,14 +114,14 @@ function M.attach_buffer()
   end, ' Send mail')
 
   -- === Quote ===
+  -- Normal mode: quote the current line only. Reading '< / '> in normal mode
+  -- would consult stale visual marks (last visual selection, possibly from an
+  -- unrelated buffer) — or return 0 if never set, crashing nvim_buf_set_lines
+  -- with E5108 'start' > 'end'. Visual-mode quote handler below covers ranges.
   map('q', function()
-    local start_line = vim.fn.line("'<") or vim.fn.line('.')
-    local end_line = vim.fn.line("'>") or vim.fn.line('.')
-    local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
-    for i, l in ipairs(lines) do
-      lines[i] = '> ' .. l
-    end
-    vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, false, lines)
+    local cur = vim.fn.line('.')
+    local line = vim.api.nvim_buf_get_lines(0, cur - 1, cur, false)[1] or ''
+    vim.api.nvim_buf_set_lines(0, cur - 1, cur, false, { '> ' .. line })
   end, ' Quote')
 
   -- Also map quote in visual mode
