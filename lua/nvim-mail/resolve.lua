@@ -16,27 +16,56 @@ function M.tr(s)
   end))
 end
 
---- Strip Ericsson-style suffixes: "Kevin Li K" → "Kevin Li", "Magnus Lundgren X" → "Magnus Lundgren"
+--- Strip name suffixes: "Kevin Li K" → "Kevin Li", "Magnus Lundgren X" → "Magnus Lundgren".
+--- Strips single/double uppercase word suffixes and Roman-numeral suffixes.
 function M.normalize_name(n)
   return vim.trim(n:gsub('%s+[A-Z][A-Z]?$', ''):gsub('%s+I+$', ''))
 end
 
---- Build Ericsson email candidates from a name (first.last, first.mid.last variants).
---- Returns list of candidate email prefixes (without @ericsson.com).
-function M.ericsson_candidates(name)
-  local norm = M.normalize_name(name)
-  local parts = vim.split(norm, ' ', { trimempty = true })
+--- Build email-prefix candidates from a display name.
+--- @param name string  Display name, e.g. "Anders Björk" or "Kevin K Li"
+--- @param pattern string  One of: 'first.last' | 'flast' | 'first_last' | 'firstlast' | 'last.first'
+--- @param opts table?  { transliterate: bool, normalize_suffixes: bool }
+---   transliterate=true  applies ä→a, ö→o etc. before pattern building
+---   normalize_suffixes=true  strips single/double uppercase word suffixes first
+---
+--- Multi-word names: parts[1] is first name, parts[#parts] is last name, any
+--- middle parts are treated as middle names.  For the 'first.last' pattern, a
+--- three-part name generates three variants (first.mid.last, first.last.mid,
+--- first.last) to cover common corporate conventions.  Other patterns use only
+--- first and last to avoid combinatorial noise.
+function M.build_candidates(name, pattern, opts)
+  opts = opts or {}
+  local processed = opts.normalize_suffixes and M.normalize_name(name) or vim.trim(name)
+  local parts = vim.split(processed, ' ', { trimempty = true })
   if #parts < 2 then return {} end
-  local first = M.tr(parts[1]:lower())
-  local last  = M.tr(parts[#parts]:lower())
+  local xfm = opts.transliterate and M.tr or function(s) return s end
+  local first = xfm(vim.fn.tolower(parts[1]))
+  local last  = xfm(vim.fn.tolower(parts[#parts]))
   local candidates = {}
-  if #parts == 3 then
-    local mid = M.tr(parts[2]:lower())
-    candidates[#candidates+1] = first..'.'..mid..'.'..last
-    candidates[#candidates+1] = first..'.'..last..'.'..mid
+  if pattern == 'first.last' then
+    if #parts == 3 then
+      local mid = xfm(vim.fn.tolower(parts[2]))
+      candidates[#candidates+1] = first..'.'..mid..'.'..last
+      candidates[#candidates+1] = first..'.'..last..'.'..mid
+    end
+    candidates[#candidates+1] = first..'.'..last
+  elseif pattern == 'flast' then
+    candidates[#candidates+1] = first:sub(1, 1)..last
+  elseif pattern == 'first_last' then
+    candidates[#candidates+1] = first..'_'..last
+  elseif pattern == 'firstlast' then
+    candidates[#candidates+1] = first..last
+  elseif pattern == 'last.first' then
+    candidates[#candidates+1] = last..'.'..first
   end
-  candidates[#candidates+1] = first..'.'..last
   return candidates
+end
+
+--- Build Ericsson-style candidates (first.last with transliteration and suffix stripping).
+--- Kept for backwards compatibility; delegates to build_candidates.
+function M.ericsson_candidates(name)
+  return M.build_candidates(name, 'first.last', { transliterate = true, normalize_suffixes = true })
 end
 
 --- Validate that a notmuch display name contains both first and longest-surname words.

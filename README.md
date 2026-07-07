@@ -92,11 +92,21 @@ graph LR
           cmd = 'khard', args = { 'email', '-p', '--remove-first-line', '-A', 'work' },
           notmuch_path = 'work',
           from = 'Your Name <you@company.com>',
+          resolver = {
+            email_pattern = 'first.last',  -- 'first.last' | 'flast' | 'first_last' | 'firstlast' | 'last.first'
+            domain        = 'company.com',
+            normalize_suffixes = true,     -- strip trailing 'K'/'XX'/'I' suffixes before matching
+            transliterate      = true,     -- ä→a, ö→o etc.
+            ldap = {                       -- omit to disable LDAP stage
+              cmd = 'ldap_owa_query', args = {}, account_arg = 'work', timeout = 10000,
+            },
+          },
         },
         personal = {
           cmd = 'khard', args = { 'email', '-p', '--remove-first-line', '-A', 'personal' },
           notmuch_path = 'personal@gmail.com',
           from = 'Your Name <you@gmail.com>',
+          -- no resolver block: ,mC uses khard only for personal
         },
       },
     },
@@ -275,29 +285,37 @@ require('nvim-mail').setup({
       ['company%.com'] = 'work',
       ['gmail%.com'] = 'personal',
     },
-    -- Per-account khard address books
+    -- Per-account khard address books + optional resolver block
     accounts = {
       work = {
         cmd = 'khard',
         args = { 'email', '-p', '--remove-first-line', '-A', 'work' },
         notmuch_path = 'work',
+        resolver = {
+          email_pattern = 'first.last',  -- 'first.last'|'flast'|'first_last'|'firstlast'|'last.first'
+          domain        = 'company.com',
+          normalize_suffixes = true,
+          transliterate      = true,
+          ldap = { cmd = 'ldap_owa_query', args = {}, account_arg = 'work', timeout = 10000 },
+        },
       },
       personal = {
         cmd = 'khard',
         args = { 'email', '-p', '--remove-first-line', '-A', 'personal' },
         notmuch_path = 'you@gmail.com',
+        -- no resolver: khard-only for personal account
       },
     },
-    work_domain = 'company.com',
   },
 })
 ```
 
-Resolution priority per account:
-1. **khard** — account-scoped address book (`-A work` or `-A personal`)
-2. **notmuch** — scoped by `path:work/**` or `path:you@gmail.com/**`
-3. **Corporate pattern** — `first.last@work_domain` (work account only)
-4. **LDAP** — DavMail corporate directory (work account only)
+Resolution pipeline per account (`,mC`):
+1. **khard** — always runs, account-scoped (`-A work` etc.)
+2. **notmuch** — only if `resolver.email_pattern` + `resolver.domain` are set; scoped by `notmuch_path`
+3. **LDAP** — only if `resolver.ldap` is configured; command + args from config
+
+Accounts without a `resolver` block skip stages 2 and 3 entirely.
 
 ### Contacts picker (`<leader>sK` / `,mK`)
 
@@ -317,13 +335,13 @@ Loads khard contacts instantly (~300ms). `Ctrl+e` merges notmuch addresses on de
 
 ### Contact resolution (`,mC`)
 
-Resolves display names in `To:`/`Cc:`/`Bcc:` to emails using a 3-stage pipeline:
+Resolves display names in `To:`/`Cc:`/`Bcc:` to emails using a per-account 3-stage pipeline:
 
 1. **khard** — local vcard store, 3 name variants (original, suffix-stripped, first+last)
-2. **notmuch** — corporate email pattern (`first.last@company.com`) with transliteration (ä→a, ö→o) and name validation
-3. **ldap** — DavMail LDAP as last resort, shows `⏳ LDAP lookup for: <name>` warning
+2. **notmuch** — only if `resolver.email_pattern` + `resolver.domain` are set; builds candidates per configured pattern (`first.last`, `flast`, `first_last`, `firstlast`, `last.first`) with optional transliteration (ä→a, ö→o) and suffix normalisation; scoped by `notmuch_path`
+3. **ldap** — only if `resolver.ldap` is configured; shows `⏳ LDAP lookup for: <name>` warning
 
-Successful notmuch and ldap results are auto-saved to khard for instant lookup next time.
+Accounts without a `resolver` block use khard only. Successful notmuch and ldap results are auto-saved to khard for instant lookup next time.
 
 Features:
 - Live results as you type (nm-livesearch async streaming)

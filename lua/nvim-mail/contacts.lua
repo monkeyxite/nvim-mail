@@ -7,6 +7,29 @@ local M = {}
 M.config = {
   -- Per-account contact sources
   accounts = {
+    -- Each account may include an optional `resolver` block that controls
+    -- how ,mC resolves display names to emails (stages 2 + 3).
+    -- Accounts without a resolver block use khard only (stage 1).
+    --
+    -- Example:
+    --   work = {
+    --     cmd = 'khard',
+    --     args = { 'email', '-p', '--remove-first-line', '-A', 'work' },
+    --     notmuch_path = 'work',
+    --     from = 'Your Name <you@company.com>',
+    --     resolver = {
+    --       email_pattern = 'first.last',  -- 'first.last'|'flast'|'first_last'|'firstlast'|'last.first'
+    --       domain = 'company.com',
+    --       normalize_suffixes = true,     -- strip 'K'/'XX'/'I' suffixes before matching
+    --       transliterate = true,          -- ä→a, ö→o etc.
+    --       ldap = {                       -- omit to disable LDAP stage
+    --         cmd = 'ldap_owa_query',
+    --         args = {},
+    --         account_arg = 'work',
+    --         timeout = 10000,
+    --       },
+    --     },
+    --   },
     work = {
       cmd = 'khard',
       args = { 'email', '-p', '--remove-first-line', '-A', 'work' },
@@ -25,7 +48,9 @@ M.config = {
   calendar_map = {},  -- e.g. { ['Calendar'] = 'work', ['monkeyxite@gmail.com'] = 'personal' }
   -- Account → From address (used to inject From: in calendar reply)
   account_from = {},  -- e.g. { work = 'Jonny Hou <jonny.hou@ericsson.com>', personal = 'Jonny Hou <monkeyxite@gmail.com>' }
-  -- Work email domain for notmuch Ericsson-style pattern matching
+  -- DEPRECATED: use resolver.domain on the relevant accounts entry instead.
+  -- If set (and not 'example.com'), a legacy resolver is synthesised for
+  -- backwards compatibility and a one-time deprecation warning is emitted.
   work_domain = 'example.com',
   -- notmuch address search (searches all indexed mail)
   notmuch = true,
